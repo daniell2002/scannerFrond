@@ -161,23 +161,24 @@ const sidebarItems = computed(() => {
 </script>
 
 <style scoped>
-/* ── Operario user card (sidebar footer) ── */
+/* ── User card footer del sidebar oscuro ── */
 .op-user-card {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.875rem 1rem;
-  border-top: 1px solid var(--line);
+  padding: 1rem 1.25rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  background: rgba(0,0,0,0.2);
   flex-shrink: 0;
   min-width: 0;
 }
 
 .op-avatar {
-  width: 2.25rem;
-  height: 2.25rem;
-  min-width: 2.25rem;
-  border-radius: 0.375rem;
-  background: var(--accent);
+  width: 2.4rem;
+  height: 2.4rem;
+  min-width: 2.4rem;
+  border-radius: 0.6rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   color: #fff;
   font-size: 0.72rem;
   font-weight: 700;
@@ -185,19 +186,25 @@ const sidebarItems = computed(() => {
   display: grid;
   place-items: center;
   flex-shrink: 0;
+  box-shadow: 0 3px 10px rgba(66,130,194,0.35);
 }
 
 .op-user-info {
   display: flex;
   flex-direction: column;
-  gap: 0.18rem;
+  gap: 0.2rem;
   min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 160px;
+  opacity: 1;
+  transition: max-width 0.28s ease, opacity 0.2s ease;
 }
 
 .op-user-name {
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: var(--ink-900);
+  color: rgba(255,255,255,0.92);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -209,7 +216,7 @@ const sidebarItems = computed(() => {
   gap: 0.3rem;
   font-size: 0.68rem;
   font-weight: 500;
-  color: var(--ink-500);
+  color: rgba(255,255,255,0.42);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -217,7 +224,14 @@ const sidebarItems = computed(() => {
 
 .op-user-sede i {
   font-size: 0.58rem;
-  color: var(--accent);
+  color: rgba(66,130,194,0.7);
   flex-shrink: 0;
+}
+
+@media (min-width: 1200px) {
+  .op-user-card { justify-content: center; padding: 0.875rem; transition: padding 0.28s ease; }
+  .sidebar-open .op-user-card { justify-content: flex-start; padding: 1rem 1.25rem; }
+  .op-user-info { max-width: 0; opacity: 0; }
+  .sidebar-open .op-user-info { max-width: 160px; opacity: 1; }
 }
 </style>

@@ -79,75 +79,64 @@
       </div>
     </div>
 
-    <!-- Modal 3D -->
-    <Transition name="mfade">
-      <div v-if="modal" class="modal-overlay" @click.self="closeModal">
-        <div class="modal-box">
+  </section>
 
-          <div class="modal-head">
-            <div>
-              <span class="modal-eyebrow"><i class="fas fa-cube me-2"></i>Modelo 3D</span>
-              <h3 class="modal-title">{{ modal.code }}</h3>
-              <p class="modal-sub">{{ modal.product }}</p>
-            </div>
-            <button class="modal-close" @click="closeModal"><i class="fas fa-times"></i></button>
+  <!-- ── Modal 3D ── -->
+  <BaseModal
+    v-model="modalOpen"
+    icon="fa-cube"
+    :title="modal?.code ?? ''"
+    :subtitle="modal?.product ?? ''"
+    max-width="540px"
+  >
+    <!-- Escena 3D -->
+    <div class="scene-wrap">
+      <div class="scene-stage">
+        <div class="rotator">
+          <div class="plate">
+            <div class="pface pface-front"></div>
+            <div class="pface pface-back"></div>
+            <div class="pface pface-right"></div>
+            <div class="pface pface-left"></div>
+            <div class="pface pface-top"></div>
+            <div class="pface pface-bottom"></div>
           </div>
-
-          <!-- Escena 3D genérica -->
-          <div class="scene-wrap">
-            <div class="scene-stage">
-              <div class="rotator">
-                <div class="plate">
-                  <div class="pface pface-front"></div>
-                  <div class="pface pface-back"></div>
-                  <div class="pface pface-right"></div>
-                  <div class="pface pface-left"></div>
-                  <div class="pface pface-top"></div>
-                  <div class="pface pface-bottom"></div>
-                </div>
-              </div>
-            </div>
-            <p class="scene-hint">
-              <i class="fas fa-cube me-1"></i>
-              Para el modelo de la pieza real, sube la foto en el Scanner
-            </p>
-          </div>
-
-          <!-- Info -->
-          <div class="modal-grid">
-            <div class="modal-cell"><span class="mc-label">Sede</span><span class="mc-val">{{ modal.sedeInfo.name }}</span></div>
-            <div class="modal-cell">
-              <span class="mc-label">Estado</span>
-              <span class="chip" :class="{'chip-proceso':modal.status==='En proceso','chip-completa':modal.status==='Completada','chip-pendiente':modal.status==='Pendiente','chip-bloqueada':modal.status==='Bloqueada'}">{{ modal.status }}</span>
-            </div>
-            <div class="modal-cell"><span class="mc-label">Lote</span><span class="mc-val">{{ modal.batch }}</span></div>
-            <div class="modal-cell"><span class="mc-label">Línea</span><span class="mc-val">{{ modal.line }}</span></div>
-            <div class="modal-cell"><span class="mc-label">Operador</span><span class="mc-val">{{ modal.operator }}</span></div>
-            <div class="modal-cell">
-              <span class="mc-label">Prioridad</span>
-              <span class="chip" :class="{'chip-alta':modal.priority==='Alta','chip-media':modal.priority==='Media','chip-baja':modal.priority==='Baja'}">{{ modal.priority }}</span>
-            </div>
-            <div class="modal-cell modal-cell-full">
-              <span class="mc-label">Avance</span>
-              <div class="d-flex align-items-center gap-2 mt-1">
-                <div class="avance-track flex-grow-1"><div class="avance-fill" :style="{ width:`${modal.completionRate}%` }"></div></div>
-                <strong>{{ modal.completionRate }}%</strong>
-              </div>
-              <small class="text-secondary">{{ modal.completed.toLocaleString() }} / {{ modal.quantity.toLocaleString() }} unidades</small>
-            </div>
-          </div>
-
-          <div class="modal-footer">
-            <RouterLink :to="`/orden/${modal.code}`" class="btn btn-dark" @click="closeModal">
-              <i class="fas fa-arrow-right me-2"></i>Ver detalle
-            </RouterLink>
-            <button class="btn btn-outline-secondary" @click="closeModal">Cerrar</button>
-          </div>
-
         </div>
       </div>
-    </Transition>
-  </section>
+      <p class="scene-hint"><i class="fas fa-cube me-1"></i>Para el modelo real, sube la foto en el Scanner</p>
+    </div>
+
+    <!-- Info grid -->
+    <div class="modal-grid">
+      <div class="modal-cell"><span class="mc-label">Sede</span><span class="mc-val">{{ modal?.sedeInfo?.name }}</span></div>
+      <div class="modal-cell">
+        <span class="mc-label">Estado</span>
+        <span class="chip" :class="{'chip-proceso':modal?.status==='En proceso','chip-completa':modal?.status==='Completada','chip-pendiente':modal?.status==='Pendiente','chip-bloqueada':modal?.status==='Bloqueada'}">{{ modal?.status }}</span>
+      </div>
+      <div class="modal-cell"><span class="mc-label">Lote</span><span class="mc-val">{{ modal?.batch }}</span></div>
+      <div class="modal-cell"><span class="mc-label">Línea</span><span class="mc-val">{{ modal?.line || '—' }}</span></div>
+      <div class="modal-cell"><span class="mc-label">Operador</span><span class="mc-val">{{ modal?.operator }}</span></div>
+      <div class="modal-cell">
+        <span class="mc-label">Prioridad</span>
+        <span class="chip" :class="{'chip-alta':modal?.priority==='Alta','chip-media':modal?.priority==='Media','chip-baja':modal?.priority==='Baja'}">{{ modal?.priority }}</span>
+      </div>
+      <div class="modal-cell modal-cell-full">
+        <span class="mc-label">Avance</span>
+        <div class="d-flex align-items-center gap-2 mt-1">
+          <div class="avance-track flex-grow-1"><div class="avance-fill" :style="{ width:`${modal?.completionRate}%` }"></div></div>
+          <strong>{{ modal?.completionRate }}%</strong>
+        </div>
+        <small class="text-secondary">{{ modal?.completed?.toLocaleString() }} / {{ modal?.quantity?.toLocaleString() }} unidades</small>
+      </div>
+    </div>
+
+    <template #footer>
+      <button class="btn btn-outline-secondary" @click="modalOpen = false">Cerrar</button>
+      <RouterLink :to="`/orden/${modal?.code}`" class="btn btn-dark" @click="modalOpen = false">
+        <i class="fas fa-arrow-right me-2"></i>Ver detalle
+      </RouterLink>
+    </template>
+  </BaseModal>
 </template>
 
 <script setup>
@@ -156,6 +145,7 @@ import { storeToRefs } from 'pinia'
 import { RouterLink } from 'vue-router'
 import { useOrdersStore } from '../stores/orders'
 import { useAuthStore } from '../stores/auth'
+import BaseModal from '../components/BaseModal.vue'
 
 const ordersStore = useOrdersStore()
 const authStore   = useAuthStore()
@@ -173,8 +163,9 @@ const fmtTime = (iso) => iso
 const updateFilter = (key, e) => ordersStore.setFilter(key, e.target.value)
 
 const modal      = ref(null)
-const openModal  = (order) => { modal.value = order }
-const closeModal = () => { modal.value = null }
+const modalOpen  = ref(false)
+const openModal  = (order) => { modal.value = order; modalOpen.value = true }
+
 </script>
 
 <style scoped>
@@ -184,43 +175,41 @@ const closeModal = () => { modal.value = null }
 .ord-title-row {
   display: flex; align-items: center; justify-content: space-between;
   gap: 1rem; flex-wrap: wrap;
-  background: var(--paper); border: 1px solid var(--line);
-  border-radius: 0.375rem; padding: 1.25rem 1.5rem;
-  box-shadow: var(--shadow-sm);
+  background: linear-gradient(135deg, #14213d 0%, #1e3a62 100%);
+  border: none; border-radius: 1rem; padding: 1.5rem 1.75rem;
+  box-shadow: 0 8px 24px rgba(15,23,42,0.18);
 }
 .ord-title-left { display:flex; align-items:center; gap:1rem; }
 .ord-title-icon {
   width: 2.75rem; height: 2.75rem; min-width: 2.75rem;
-  background: var(--accent); border-radius: 0.375rem;
-  display: grid; place-items: center;
+  background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 0.65rem; display: grid; place-items: center;
   color: #fff; font-size: 1rem;
 }
-.ord-title    { font-family:var(--font-display); font-size:1.15rem; font-weight:700; margin:0 0 0.25rem; color:var(--ink-900); }
-.ord-subtitle { font-size:0.8rem; color:var(--ink-500); margin:0; display:flex; align-items:center; gap:0.4rem; }
+.ord-title    { font-family:var(--font-display); font-size:1.15rem; font-weight:700; margin:0 0 0.2rem; color:#fff; }
+.ord-subtitle { font-size:0.8rem; color:rgba(255,255,255,0.65); margin:0; display:flex; align-items:center; gap:0.4rem; }
 .ord-count-badge {
   font-size:0.72rem; font-weight:700;
-  background:rgba(66,130,194,0.12); color:var(--accent);
-  border:1px solid rgba(66,130,194,0.2);
-  padding:0.1rem 0.5rem; border-radius:3px;
+  background:rgba(255,255,255,0.15); color:#fff;
+  border:1px solid rgba(255,255,255,0.25);
+  padding:0.1rem 0.55rem; border-radius:0.4rem;
 }
 .ord-clear-btn {
   display: inline-flex; align-items: center; gap: 0.35rem;
-  padding: 0.45rem 0.875rem;
-  background: var(--surface); border: 1px solid var(--line);
-  border-radius: 0.375rem; font-size: 0.8rem; font-weight: 600;
-  color: var(--ink-700); cursor: pointer;
+  padding: 0.55rem 1rem;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 0.65rem; font-size: 0.8rem; font-weight: 600;
+  color: rgba(255,255,255,0.85); cursor: pointer;
   transition: background 0.14s, color 0.14s;
 }
-.ord-clear-btn:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+.ord-clear-btn:hover { background: rgba(196,69,54,0.7); color: #fff; border-color: transparent; }
 
-.ord-filters {
-  display: flex; gap: 0.75rem; flex-wrap: wrap;
-}
+.ord-filters { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 .ord-search-wrap {
   flex: 1; min-width: 220px;
   display: flex; align-items: center;
   background: var(--paper); border: 1.5px solid var(--line);
-  border-radius: 0.375rem; overflow: hidden;
+  border-radius: 0.75rem; overflow: hidden;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .ord-search-wrap:focus-within {
@@ -240,7 +229,7 @@ const closeModal = () => { modal.value = null }
   min-width: 180px;
   display: flex; align-items: center;
   background: var(--paper); border: 1.5px solid var(--line);
-  border-radius: 0.375rem; overflow: hidden;
+  border-radius: 0.75rem; overflow: hidden;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .ord-select-wrap:focus-within {
@@ -255,62 +244,39 @@ const closeModal = () => { modal.value = null }
   background: transparent; cursor: pointer; font-family: var(--font-body);
   color-scheme: light;
 }
+html.dark .ord-select { color-scheme: dark; }
+.ord-select option { color: var(--ink-900); background: var(--paper); }
+html.dark .ord-select option { color: var(--ink-900); background: var(--surface); }
 
-html.dark .ord-select {
-  color-scheme: dark;
-}
-
-.ord-select option {
-  color: var(--ink-900);
-  background: var(--paper);
-}
-
-html.dark .ord-select option {
-  color: var(--ink-900);
-  background: var(--surface);
-}
-
-.ord-table-wrap { background:var(--paper); border:1px solid var(--line); border-radius:0.375rem; overflow:hidden; box-shadow:var(--shadow-sm); }
-/* tabla */
+.ord-table-wrap { background:var(--paper); border:1px solid var(--line); border-radius:1rem; overflow:hidden; box-shadow:var(--shadow-sm); }
 
 .ord-table { width:100%; border-collapse:collapse; font-size:0.865rem; }
-.ord-table th { padding:0.75rem 1rem; text-align:left; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.1rem; color:var(--ink-500); font-weight:700; border-bottom:2px solid var(--line); background:var(--surface); white-space:nowrap; }
-.ord-table td { padding:0.75rem 1rem; border-bottom:1px solid var(--line); vertical-align:middle; color:var(--ink-900); }
+.ord-table th { padding:0.8rem 1rem; text-align:left; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.1rem; color:var(--ink-500); font-weight:700; border-bottom:1px solid var(--line); background:var(--surface); white-space:nowrap; }
+.ord-table td { padding:0.85rem 1rem; border-bottom:1px solid var(--line); vertical-align:middle; color:var(--ink-900); }
 .ord-table tbody tr:last-child td { border-bottom:none; }
-.ord-table tbody tr:hover { background:var(--surface); }
+.ord-table tbody tr:hover { background:rgba(66,130,194,0.04); }
 .ord-code    { font-weight:700; font-size:0.82rem; letter-spacing:0.04rem; color:var(--ink-500); }
 .ord-product { max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; }
 .text-muted-sm { color:var(--ink-500); font-size:0.83rem; }
 .ord-time { font-size:0.82rem; font-weight:600; color:var(--ink-700); font-variant-numeric:tabular-nums; white-space:nowrap; }
 
-.chip { display:inline-block; font-size:0.68rem; font-weight:600; padding:0.22rem 0.6rem; border-radius:3px; white-space:nowrap; }
+.chip { display:inline-flex; align-items:center; font-size:0.7rem; font-weight:600; padding:0.28rem 0.65rem; border-radius:0.45rem; white-space:nowrap; }
 .chip-sede     { background:var(--surface); color:var(--ink-700); border:1px solid var(--line); }
-.chip-proceso  { background:rgba(54,80,108,0.1);  color:var(--ink-700); }
-.chip-completa { background:rgba(46,139,87,0.12); color:var(--success); }
-.chip-pendiente{ background:rgba(239,176,54,0.15); color:var(--accent-strong); }
-.chip-bloqueada{ background:rgba(196,69,54,0.1);  color:var(--danger); }
-.chip-alta     { background:rgba(196,69,54,0.1);  color:var(--danger); }
-.chip-media    { background:rgba(239,176,54,0.15); color:var(--accent-strong); }
-.chip-baja     { background:rgba(46,139,87,0.12); color:var(--success); }
+.chip-proceso  { background:rgba(54,80,108,0.1);   color:var(--ink-700); }
+.chip-completa { background:rgba(46,139,87,0.12);  color:var(--success); }
+.chip-pendiente{ background:rgba(239,176,54,0.15); color:#b45309; }
+.chip-bloqueada{ background:rgba(196,69,54,0.1);   color:var(--danger); }
+.chip-alta     { background:rgba(196,69,54,0.1);   color:var(--danger); }
+.chip-media    { background:rgba(239,176,54,0.15); color:#b45309; }
+.chip-baja     { background:rgba(46,139,87,0.12);  color:var(--success); }
 
 .empty-row { padding:2.5rem; text-align:center; color:var(--ink-500); font-size:0.88rem; }
 
-.btn-3d { display:inline-flex; align-items:center; justify-content:center; width:2rem; height:2rem; background:linear-gradient(135deg,var(--sidebar-bg) 0%,var(--ink-700) 100%); color:var(--accent); border:none; border-radius:0.375rem; font-size:0.78rem; cursor:pointer; transition:opacity 0.14s,transform 0.14s; }
-.btn-3d:hover { opacity:0.85; transform:scale(1.08); }
+.btn-3d { display:inline-flex; align-items:center; justify-content:center; width:2rem; height:2rem; background:var(--surface); color:var(--accent); border:1px solid var(--line); border-radius:0.5rem; font-size:0.78rem; cursor:pointer; transition:background 0.14s, transform 0.14s, border-color 0.14s; }
+.btn-3d:hover { background:var(--accent); color:#fff; border-color:var(--accent); transform:scale(1.06); }
 
-/* Modal */
-.modal-overlay { position:fixed; inset:0; z-index:500; background:rgba(0,0,0,0.55); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; padding:1rem; }
-.modal-box { background:var(--paper); border:1px solid var(--line); border-radius:0.5rem; width:100%; max-width:540px; box-shadow:0 24px 60px rgba(0,0,0,0.25); overflow:hidden; max-height:92vh; overflow-y:auto; }
-
-.modal-head { display:flex; justify-content:space-between; align-items:flex-start; padding:1.25rem 1.5rem; border-bottom:1px solid var(--line); background:var(--surface); }
-.modal-eyebrow { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12rem; color:var(--ink-500); display:block; margin-bottom:0.25rem; }
-.modal-title   { font-family:var(--font-display); font-size:1.2rem; font-weight:700; margin:0 0 0.15rem; }
-.modal-sub     { font-size:0.84rem; color:var(--ink-700); margin:0; }
-.modal-close { width:2rem; height:2rem; flex-shrink:0; background:var(--surface-2); border:1px solid var(--line); border-radius:0.375rem; color:var(--ink-500); cursor:pointer; font-size:0.8rem; display:grid; place-items:center; transition:background 0.12s; }
-.modal-close:hover { background:var(--danger); color:#fff; border-color:var(--danger); }
-
-/* Escena 3D */
-.scene-wrap  { padding:1.5rem; background:linear-gradient(180deg,var(--surface) 0%,var(--paper) 100%); border-bottom:1px solid var(--line); display:flex; flex-direction:column; align-items:center; }
+/* ── Escena 3D ── */
+.scene-wrap  { padding:1rem; background:linear-gradient(180deg,var(--surface) 0%,var(--paper) 100%); border-radius:0.75rem; border:1px solid var(--line); display:flex; flex-direction:column; align-items:center; }
 .scene-stage { perspective:900px; width:200px; height:200px; display:flex; align-items:center; justify-content:center; }
 .scene-hint  { font-size:0.72rem; color:var(--ink-500); margin:0.75rem 0 0; text-align:center; }
 
@@ -336,13 +302,9 @@ html.dark .ord-select option {
 .pface-top    { transform:rotateX(90deg)  translateZ(80px); background:linear-gradient(90deg,#c0c8d4,#d4dbe6 50%,#c0c8d4); }
 .pface-bottom { transform:rotateX(-90deg) translateZ(80px); background:linear-gradient(90deg,#6b7280,#8a9099 50%,#6b7280); }
 
-.modal-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; padding:1.25rem 1.5rem; border-bottom:1px solid var(--line); }
+.modal-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.875rem; }
 .modal-cell { display:flex; flex-direction:column; gap:0.3rem; }
 .modal-cell-full { grid-column:1/-1; }
 .mc-label { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.1rem; color:var(--ink-500); }
 .mc-val   { font-size:0.9rem; font-weight:600; color:var(--ink-900); }
-.modal-footer { display:flex; gap:0.75rem; justify-content:flex-end; padding:1rem 1.5rem; }
-
-.mfade-enter-active,.mfade-leave-active { transition:opacity 0.2s ease; }
-.mfade-enter-from,.mfade-leave-to { opacity:0; }
 </style>
