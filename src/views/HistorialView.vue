@@ -11,7 +11,7 @@
         </div>
       </div>
 
-      <!-- Stat cards -->
+      <!-- Stat card -->
       <div class="stats-row mb-4">
         <div class="stat-card">
           <div class="stat-icon" style="background:rgba(66,130,194,0.1);color:var(--accent)">
@@ -20,33 +20,6 @@
           <div>
             <p class="stat-label">En historial</p>
             <p class="stat-num">{{ stats.total }}</p>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background:rgba(46,139,87,0.1);color:var(--success)">
-            <i class="fas fa-check-circle"></i>
-          </div>
-          <div>
-            <p class="stat-label">Completadas</p>
-            <p class="stat-num">{{ stats.completadas }}</p>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background:rgba(54,80,108,0.1);color:var(--ink-700)">
-            <i class="fas fa-spinner"></i>
-          </div>
-          <div>
-            <p class="stat-label">En proceso</p>
-            <p class="stat-num">{{ stats.enProceso }}</p>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background:rgba(196,69,54,0.1);color:var(--danger)">
-            <i class="fas fa-ban"></i>
-          </div>
-          <div>
-            <p class="stat-label">Bloqueadas</p>
-            <p class="stat-num">{{ stats.bloqueadas }}</p>
           </div>
         </div>
       </div>
@@ -136,10 +109,7 @@ async function generatePdf(order) {
 }
 
 const stats = computed(() => ({
-  total:       historicalOrders.value.length,
-  completadas: historicalOrders.value.filter(o => o.status === 'Completada').length,
-  enProceso:   historicalOrders.value.filter(o => o.status === 'En proceso').length,
-  bloqueadas:  historicalOrders.value.filter(o => o.status === 'Bloqueada').length,
+  total: historicalOrders.value.length,
 }))
 
 const hoy = new Date().toLocaleDateString('es-CO', {
@@ -176,13 +146,9 @@ const fmt = (iso) => iso
 .hist-title { font-family:var(--font-display); font-size:1.15rem; font-weight:700; margin:0 0 0.2rem; color:var(--ink-900); }
 .hist-sub   { font-size:0.8rem; color:var(--ink-500); margin:0; text-transform:capitalize; }
 
-/* Stat cards */
-.stats-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.875rem;
-}
-@media (max-width: 767px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+/* Stat card */
+.stats-row { display: flex; }
+.stats-row .stat-card { width: 100%; max-width: 220px; }
 
 .stat-card {
   background: var(--paper);
