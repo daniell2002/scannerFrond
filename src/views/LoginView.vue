@@ -1,113 +1,122 @@
 <template>
   <div class="login-bg">
-    <div class="login-split">
+    <div class="login-shell">
+      <section class="login-showcase">
+        <div class="login-showcase-badge">
+          <i class="fas fa-qrcode"></i>
+          <span>Control de operaciones</span>
+        </div>
 
-      <div class="login-info">
-        <div class="login-info-content">
-          <div class="login-brand">
-            <div class="login-brand-icon">
+        <div class="login-showcase-copy">
+          <p class="login-brand-sub">CONEXA</p>
+          <h1 class="login-showcase-title">Gestiona tus órdenes con una vista limpia, rápida y segura.</h1>
+          <p class="login-showcase-text">
+            Entra al sistema para revisar movimientos, consultar historiales y mantener el flujo de trabajo al día.
+          </p>
+        </div>
+
+        <div class="login-showcase-stats">
+          <article>
+            <strong>24/7</strong>
+            <span>Disponibilidad</span>
+          </article>
+          <article>
+            <strong>1 clic</strong>
+            <span>Acceso rápido</span>
+          </article>
+          <article>
+            <strong>100%</strong>
+            <span>Enfoque operativo</span>
+          </article>
+        </div>
+
+        <div class="login-showcase-card">
+          <div class="login-showcase-card-row">
+            <span class="login-showcase-dot"></span>
+            <span>Monitoreo de órdenes y sedes en tiempo real</span>
+          </div>
+          <div class="login-showcase-card-row">
+            <span class="login-showcase-dot"></span>
+            <span>Diseño pensado para escritorio y móvil</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="login-card">
+        <div class="login-card-inner">
+
+          <div class="lc-logo">
+            <div class="lc-logo-icon">
               <i class="fas fa-barcode"></i>
+            </div>
+            <div class="lc-logo-text">
+              <span class="lc-logo-name">CONEXA</span>
+              <span class="lc-logo-sub">Órdenes</span>
             </div>
           </div>
 
-          <h1 class="login-brand-title">CONEXA</h1>
-          <p class="login-brand-sub">Sistema de gestión de órdenes</p>
+          <div class="lc-header">
+            <h2 class="lc-title">Bienvenido de vuelta</h2>
+            <p class="lc-desc">Ingresa tus credenciales para acceder al sistema</p>
+          </div>
 
-          <ul class="login-info-list">
-            <li>
-              <span class="login-info-icon"><i class="fas fa-qrcode"></i></span>
-              <div>
-                <strong>Scanner</strong>
-                <span>Registra el avance de cada orden al instante</span>
+          <form @submit.prevent="handleLogin" novalidate class="lc-form">
+            <div class="lc-field">
+              <label class="lc-label">Usuario</label>
+              <div class="lc-input-wrap">
+                <i class="fas fa-user lc-icon"></i>
+                <input
+                  v-model="username"
+                  type="text"
+                  class="lc-input"
+                  placeholder="Ingresa tu usuario"
+                  autocomplete="username"
+                  required
+                />
               </div>
-            </li>
-            <li>
-              <span class="login-info-icon"><i class="fas fa-layer-group"></i></span>
-              <div>
-                <strong>Órdenes</strong>
-                <span>Seguimiento en tiempo real por sede</span>
-              </div>
-            </li>
-            <li>
-              <span class="login-info-icon"><i class="fas fa-history"></i></span>
-              <div>
-                <strong>Historial</strong>
-                <span>Trazabilidad completa de cada escaneo</span>
-              </div>
-            </li>
-            <li>
-              <span class="login-info-icon"><i class="fas fa-chart-bar"></i></span>
-              <div>
-                <strong>Estadísticas</strong>
-                <span>Reportes de producción al instante</span>
-              </div>
-            </li>
-          </ul>
-        </div>
-
-        <p class="login-info-footer">&copy; {{ year }} Conexa &middot; Todos los derechos reservados</p>
-
-        <div class="login-info-decor login-info-decor--1"></div>
-        <div class="login-info-decor login-info-decor--2"></div>
-        <i class="fas fa-barcode login-info-watermark"></i>
-      </div>
-
-      <div class="login-form-side">
-        <div class="login-card">
-          <h2 class="login-heading">Bienvenido de vuelta</h2>
-          <p class="login-sub">Ingresa tus credenciales para continuar</p>
-
-          <form @submit.prevent="handleLogin" novalidate>
-            <div class="login-field">
-              <label class="login-label"><i class="fas fa-user"></i> Usuario</label>
-              <input
-                v-model="username"
-                type="text"
-                class="login-input"
-                placeholder="Tu usuario"
-                autocomplete="username"
-                required
-              />
             </div>
 
-            <div class="login-field">
-              <label class="login-label"><i class="fas fa-lock"></i> Contraseña</label>
-              <div class="login-input-wrap">
+            <div class="lc-field">
+              <label class="lc-label">Contraseña</label>
+              <div class="lc-input-wrap">
+                <i class="fas fa-lock lc-icon"></i>
                 <input
                   v-model="password"
                   :type="showPass ? 'text' : 'password'"
-                  class="login-input"
-                  placeholder="Tu contraseña"
+                  class="lc-input"
+                  placeholder="Ingresa tu contraseña"
                   autocomplete="current-password"
                   required
                 />
-                <button type="button" class="login-eye" @click="showPass = !showPass" tabindex="-1">
+                <button type="button" class="lc-eye" @click="showPass = !showPass" tabindex="-1">
                   <i class="fas" :class="showPass ? 'fa-eye-slash' : 'fa-eye'"></i>
                 </button>
               </div>
             </div>
 
-            <label class="login-remember">
+            <label class="lc-remember">
               <input type="checkbox" v-model="remember" />
               Recordar mi usuario
             </label>
 
-            <div v-if="error" class="login-error">
-              <i class="fas fa-circle-exclamation me-2"></i>{{ error }}
+            <div v-if="error" class="lc-error">
+              <i class="fas fa-circle-exclamation"></i>
+              <span>{{ error }}</span>
             </div>
 
-            <button type="submit" class="login-btn" :disabled="loading">
-              <span v-if="loading"><i class="fas fa-spinner fa-spin me-2"></i>Verificando…</span>
-              <span v-else><i class="fas fa-sign-in-alt me-2"></i>Ingresar</span>
+            <button type="submit" class="lc-btn" :disabled="loading">
+              <span v-if="loading">
+                <i class="fas fa-spinner fa-spin"></i> Verificando…
+              </span>
+              <span v-else>
+                Ingresar <i class="fas fa-arrow-right"></i>
+              </span>
             </button>
           </form>
 
-          <p class="login-note">
-            El registro de usuarios es interno y solo lo realiza un administrador autenticado.
-          </p>
+          <p class="lc-footer">Solo para personal autorizado</p>
         </div>
-      </div>
-
+      </section>
     </div>
   </div>
 </template>
@@ -126,7 +135,6 @@ const remember = ref(false)
 const error    = ref('')
 const loading  = ref(false)
 const showPass = ref(false)
-const year     = new Date().getFullYear()
 
 onMounted(() => {
   const saved = localStorage.getItem('login_remember_user')
@@ -158,375 +166,438 @@ async function handleLogin() {
 <style scoped>
 .login-bg {
   height: 100vh;
+  width: 100vw;
   overflow: hidden;
-  background: var(--body-bg);
+  background:
+    radial-gradient(circle at top left, rgba(66, 130, 194, 0.22), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(239, 176, 54, 0.16), transparent 28%),
+    linear-gradient(160deg, #f6f8fc 0%, var(--body-bg) 48%, #eef3f8 100%);
 }
 
-.login-split {
+.login-shell {
   width: 100%;
-  height: 100vh;
+  height: 100%;
   display: grid;
   grid-template-columns: 1fr 1fr;
+  overflow: hidden;
 }
 
-/* ---- left: info panel ---- */
-.login-info {
+.login-showcase {
   position: relative;
-  isolation: isolate;
-  overflow: hidden;
+  padding: 3rem 3.5rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  background:
-    radial-gradient(circle at 12% 8%, rgba(255,255,255,0.18), transparent 40%),
-    radial-gradient(circle at 90% 85%, rgba(0,0,0,0.25), transparent 55%),
-    linear-gradient(150deg,
-      color-mix(in srgb, var(--accent-strong) 70%, black),
-      var(--accent) 50%,
-      color-mix(in srgb, var(--accent-strong) 70%, black));
+  gap: 2rem;
+  overflow: hidden;
   color: #fff;
-  padding: 3.5rem 3rem;
-  box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.08);
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.22), transparent 24%),
+    linear-gradient(145deg, rgba(20, 33, 61, 0.98), rgba(46, 106, 168, 0.92));
+  isolation: isolate;
 }
 
-.login-info::before {
+.login-showcase::before {
   content: '';
   position: absolute;
-  inset: 0;
-  z-index: -1;
-  background-image:
-    linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px),
-    linear-gradient(135deg, transparent 48%, rgba(255,255,255,0.05) 50%, transparent 52%);
-  background-size: 44px 44px, 44px 44px, 88px 88px;
-  mask-image: radial-gradient(circle at 25% 25%, #000 0%, transparent 78%);
-}
-
-.login-info-decor {
-  position: absolute;
-  z-index: -1;
+  inset: auto -8% -18% auto;
+  width: 18rem;
+  height: 18rem;
   border-radius: 50%;
-  filter: blur(6px);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.login-info-decor--1 {
-  width: 24rem;
-  height: 24rem;
-  right: -8rem;
-  bottom: -9rem;
-}
-
-.login-info-decor--2 {
-  width: 13rem;
-  height: 13rem;
-  right: 4rem;
-  top: -4rem;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.login-info-watermark {
-  position: absolute;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 72%);
+  filter: blur(2px);
   z-index: -1;
-  right: -1.5rem;
-  bottom: -2rem;
-  font-size: 15rem;
-  color: rgba(255, 255, 255, 0.06);
-  transform: rotate(-8deg);
-  pointer-events: none;
 }
 
-.login-info-content {
-  max-width: 420px;
-  animation: login-fade-up 0.5s ease both;
+.login-showcase::after {
+  content: '';
+  position: absolute;
+  inset: 10% auto auto 8%;
+  width: 10rem;
+  height: 10rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1.75rem;
+  transform: rotate(14deg);
+  z-index: -1;
 }
 
-.login-brand {
-  margin-bottom: 1.5rem;
-}
-
-.login-brand-icon {
-  width: 3rem;
-  height: 3rem;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 0.7rem;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-size: 1.3rem;
-}
-
-.login-brand-title {
-  font-family: var(--font-display);
-  font-size: 1.9rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.login-brand-sub {
-  font-size: 0.92rem;
-  color: rgba(255, 255, 255, 0.8);
-  margin: 0.3rem 0 2.25rem;
-}
-
-.login-info-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1.35rem;
-}
-
-.login-info-list li {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.9rem;
-}
-
-.login-info-list li div {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.login-info-list li strong {
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: #fff;
-  letter-spacing: -0.005em;
-}
-
-.login-info-list li span {
+.login-showcase-badge {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.88);
   font-size: 0.8rem;
-  line-height: 1.4;
-  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.02rem;
 }
 
-.login-info-icon {
-  width: 2.4rem;
-  height: 2.4rem;
-  min-width: 2.4rem;
-  margin-top: 0.05rem;
+.login-showcase-copy {
+  max-width: 100%;
+}
+
+.login-showcase-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 2.4vw, 2.6rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 0.4rem 0 1rem;
+}
+
+.login-showcase-text {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.login-showcase-stats {
   display: grid;
-  place-items: center;
-  border-radius: 0.6rem;
-  background: rgba(0, 0, 0, 0.18);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.login-showcase-stats article {
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.14);
-  font-size: 0.95rem;
-  color: #fff;
+  backdrop-filter: blur(10px);
 }
 
-.login-info-footer {
-  position: relative;
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.5);
-  margin: 2.5rem 0 0;
+.login-showcase-stats strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  margin-bottom: 0.25rem;
 }
 
-/* ---- right: form panel ---- */
-.login-form-side {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
+.login-showcase-stats span {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.login-showcase-card {
+  width: min(100%, 28rem);
+  padding: 1.1rem 1.2rem;
+  border-radius: 1.15rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.login-showcase-card-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 3rem 2.5rem;
-  background:
-    radial-gradient(circle at 85% 8%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 45%),
-    radial-gradient(circle at 8% 92%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 40%),
-    var(--body-bg);
+  gap: 0.8rem;
+  font-size: 0.92rem;
+  color: rgba(255, 255, 255, 0.86);
 }
 
-.login-form-side::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--ink-900) 4%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--ink-900) 4%, transparent) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: radial-gradient(circle at 50% 40%, #000 0%, transparent 70%);
+.login-showcase-card-row + .login-showcase-card-row {
+  margin-top: 0.8rem;
+}
+
+.login-showcase-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: #f7c948;
+  box-shadow: 0 0 0 0.35rem rgba(247, 201, 72, 0.18);
+  flex-shrink: 0;
 }
 
 .login-card {
-  position: relative;
-  width: 100%;
-  max-width: 400px;
-  animation: login-fade-up 0.5s ease both;
-  animation-delay: 0.05s;
-}
-
-@keyframes login-fade-up {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@media (max-width: 760px) {
-  .login-bg {
-    height: auto;
-    overflow: visible;
-  }
-  .login-split {
-    grid-template-columns: 1fr;
-    height: auto;
-  }
-  .login-info,
-  .login-form-side {
-    overflow: visible;
-  }
-  .login-info {
-    padding: 2.5rem 1.75rem;
-  }
-  .login-info-content {
-    max-width: none;
-  }
-  .login-form-side {
-    padding: 2.5rem 1.75rem;
-  }
-}
-
-.login-heading {
-  font-family: var(--font-display);
-  font-size: 1.65rem;
-  font-weight: 700;
-  color: var(--ink-900);
-  margin: 0 0 0.3rem;
-  letter-spacing: -0.01em;
-}
-
-.login-sub {
-  font-size: 0.9rem;
-  color: var(--ink-500);
-  margin: 0 0 2rem;
-}
-
-.login-field {
-  margin-bottom: 1.15rem;
-}
-
-.login-label {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  font-size: 0.72rem;
+  justify-content: center;
+  overflow: hidden;
+  padding: 2rem;
+  background: #fff;
+}
+
+.login-card-inner {
+  width: 100%;
+  max-width: 26rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* Logo */
+.lc-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.lc-logo-icon {
+  width: 3rem;
+  height: 3rem;
+  min-width: 3rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 1.2rem;
+  box-shadow: 0 6px 18px rgba(66, 130, 194, 0.3);
+}
+
+.lc-logo-name {
+  display: block;
+  font-size: 0.58rem;
   font-weight: 700;
-  letter-spacing: 0.06rem;
+  letter-spacing: 0.2rem;
+  color: var(--ink-400);
   text-transform: uppercase;
-  color: var(--ink-700);
-  margin-bottom: 0.5rem;
 }
 
-.login-label i {
+.lc-logo-sub {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink-900);
+  line-height: 1.2;
+}
+
+/* Header */
+.lc-header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 1.5rem;
+}
+
+.lc-title {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--ink-900);
+  margin: 0 0 0.35rem;
+  letter-spacing: -0.02em;
+}
+
+.lc-desc {
+  font-size: 0.92rem;
   color: var(--ink-500);
-  font-size: 0.85rem;
+  margin: 0;
+  line-height: 1.5;
 }
 
-.login-input-wrap {
+/* Form */
+.lc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.lc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.lc-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-700);
+  letter-spacing: 0.01rem;
+}
+
+.lc-input-wrap {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.login-input {
+.lc-icon {
+  position: absolute;
+  left: 1rem;
+  color: var(--ink-400);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.lc-input {
   width: 100%;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid var(--line);
-  border-radius: 0.6rem;
-  background: var(--body-bg);
+  height: 3rem;
+  padding: 0 1rem 0 2.6rem;
+  border: 1.5px solid var(--line);
+  border-radius: 0.75rem;
+  background: #f8fafc;
   color: var(--ink-900);
-  font-size: 0.9rem;
+  font-size: 0.94rem;
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
   font-family: var(--font-body);
 }
 
-.login-input-wrap .login-input {
-  padding-right: 2.5rem;
-}
+.lc-input::placeholder { color: var(--ink-300); }
 
-.login-input:focus {
+.lc-input:focus {
+  background: #fff;
   border-color: var(--accent);
-  background: var(--paper);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
+  box-shadow: 0 0 0 3.5px rgba(66, 130, 194, 0.15);
 }
 
-.login-eye {
+.lc-eye {
   position: absolute;
-  right: 0.75rem;
+  right: 0.85rem;
   background: none;
   border: none;
-  color: var(--ink-500);
+  color: var(--ink-400);
   cursor: pointer;
-  font-size: 0.9rem;
-  padding: 0.25rem;
+  font-size: 0.88rem;
+  padding: 0.3rem;
   line-height: 1;
+  transition: color 0.15s;
 }
-.login-eye:hover { color: var(--ink-900); }
+.lc-eye:hover { color: var(--ink-700); }
 
-.login-remember {
+.lc-remember {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--ink-700);
-  margin: 0.2rem 0 1.1rem;
   cursor: pointer;
   user-select: none;
 }
+.lc-remember input { cursor: pointer; }
 
-.login-remember input {
-  width: 1rem;
-  height: 1rem;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
-.login-error {
+.lc-error {
   display: flex;
   align-items: center;
-  font-size: 0.83rem;
+  gap: 0.6rem;
+  font-size: 0.86rem;
   color: var(--danger);
-  background: rgba(196, 69, 54, 0.08);
-  border: 1px solid rgba(196, 69, 54, 0.2);
-  border-radius: 0.5rem;
+  background: rgba(196, 69, 54, 0.07);
+  border: 1px solid rgba(196, 69, 54, 0.18);
+  border-radius: 0.65rem;
   padding: 0.6rem 0.9rem;
-  margin-bottom: 1rem;
 }
 
-.login-btn {
+.lc-btn {
   width: 100%;
-  padding: 0.8rem;
-  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent-strong) 70%, black));
+  height: 3.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   color: #fff;
   border: none;
-  border-radius: 0.6rem;
-  font-size: 0.92rem;
+  border-radius: 0.75rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  margin-top: 0.2rem;
+  margin-top: 0.25rem;
   transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
   font-family: var(--font-body);
-  box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--accent-strong) 70%, transparent);
+  letter-spacing: 0.01rem;
+  box-shadow: 0 8px 20px rgba(66, 130, 194, 0.28);
 }
 
-.login-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 24px -6px color-mix(in srgb, var(--accent-strong) 75%, transparent);
+.lc-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(66, 130, 194, 0.34);
 }
-.login-btn:active:not(:disabled) { transform: translateY(0); }
-.login-btn:disabled { opacity: 0.65; cursor: not-allowed; box-shadow: none; }
+.lc-btn:active:not(:disabled) { transform: translateY(0); }
+.lc-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.login-note {
-  text-align: center;
+.lc-footer {
   font-size: 0.78rem;
-  line-height: 1.5;
-  color: var(--ink-500);
-  margin: 1.75rem 0 0;
+  color: var(--ink-400);
+  text-align: center;
+  margin: 0;
+}
+
+@media (max-width: 991.98px) {
+  .login-bg {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+
+  .login-shell {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .login-showcase {
+    padding: 2.5rem 2rem;
+    gap: 1.75rem;
+    min-height: 50vh;
+  }
+
+  .login-showcase-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .login-card {
+    padding: 2.5rem 2rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .login-showcase {
+    padding: 2rem 1.5rem;
+    min-height: auto;
+  }
+
+  .login-showcase-title {
+    font-size: clamp(1.55rem, 7vw, 2rem);
+  }
+
+  .login-showcase-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .login-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .login-heading {
+    font-size: 1.55rem;
+  }
+}
+
+html.dark .login-bg {
+  background:
+    radial-gradient(circle at top left, rgba(66, 130, 194, 0.2), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(247, 201, 72, 0.12), transparent 28%),
+    linear-gradient(160deg, #0b1220 0%, #0f172a 50%, #111c31 100%);
+}
+
+html.dark .login-shell {
+  background: rgba(15, 23, 42, 0.72);
+}
+
+html.dark .login-card {
+  background: #0d1424;
+}
+
+html.dark .lc-title,
+html.dark .lc-logo-sub {
+  color: #f1f5f9;
+}
+
+html.dark .lc-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .lc-input {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+}
+
+html.dark .lc-input:focus {
+  background: #1e293b;
+  border-color: var(--accent);
 }
 </style>

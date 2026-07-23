@@ -1,27 +1,37 @@
 <template>
-  <section class="py-4 py-lg-5">
+  <section class="py-3 py-lg-4">
     <div class="container-lg">
 
-      <!-- Cabecera -->
-      <div class="hist-header mb-4">
-        <div class="hist-title-icon"><i class="fas fa-history"></i></div>
-        <div class="hist-title-info">
-          <h2 class="hist-title">Historial de órdenes</h2>
-          <p class="hist-sub">{{ hoy }}</p>
-        </div>
-      </div>
+      <!-- Cabecera + Filtros -->
+      <div class="hist-header-wrap mb-4">
 
-      <!-- Stat card -->
-      <div class="stats-row mb-4">
-        <div class="stat-card">
-          <div class="stat-icon" style="background:rgba(66,130,194,0.1);color:var(--accent)">
-            <i class="fas fa-archive"></i>
-          </div>
-          <div>
-            <p class="stat-label">En historial</p>
-            <p class="stat-num">{{ stats.total }}</p>
+        <!-- Título -->
+        <div class="hist-header">
+          <div class="hist-title-icon"><i class="fas fa-history"></i></div>
+          <div class="hist-title-info">
+            <h2 class="hist-title">Historial de órdenes</h2>
+            <p class="hist-sub">{{ hoy }}</p>
           </div>
         </div>
+
+        <!-- Filtros -->
+        <div class="hist-filters">
+          <div class="hist-search-wrap">
+            <i class="fas fa-search hist-search-icon"></i>
+            <input
+              v-model="filters.query" type="text"
+              class="hist-search-input"
+              placeholder="Buscar por código, producto u operador…" />
+          </div>
+          <div v-if="!isOperario" class="hist-select-wrap">
+            <i class="fas fa-building hist-select-icon"></i>
+            <select class="hist-select" v-model="filters.sede">
+              <option value="all">Todas las sedes</option>
+              <option v-for="s in ordersStore.sedes" :key="s.code" :value="s.code">{{ s.name }}</option>
+            </select>
+          </div>
+        </div>
+
       </div>
 
       <!-- Tabla -->
@@ -32,11 +42,11 @@
             <i class="fas fa-archive"></i>
             <span>Órdenes anteriores</span>
           </div>
-          <span class="hist-badge">{{ historicalOrders.length }} orden(es)</span>
+          <span class="hist-badge">{{ filteredHistoricalOrders.length }} orden(es)</span>
         </div>
 
         <!-- Vacío -->
-        <div v-if="!historicalOrders.length" class="log-empty">
+        <div v-if="!filteredHistoricalOrders.length" class="log-empty">
           <div class="log-empty-icon"><i class="fas fa-clipboard-list"></i></div>
           <p class="log-empty-title">Sin historial aún</p>
           <p class="log-empty-sub">Las órdenes de días anteriores aparecen aquí automáticamente.</p>
@@ -59,7 +69,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="o in historicalOrders" :key="o.code">
+              <tr v-for="o in filteredHistoricalOrders" :key="o.code">
                 <td><span class="h-code">{{ o.code }}</span></td>
                 <td class="h-product">{{ o.product }}</td>
                 <td><span class="h-chip">{{ o.sedeInfo.name }}</span></td>
@@ -90,12 +100,15 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useOrdersStore } from '../stores/orders'
+import { useAuthStore } from '../stores/auth'
 import { generateOrderPdf } from '../utils/orderPdf'
 
-const store = useOrdersStore()
-const { historicalOrders } = storeToRefs(store)
+const ordersStore = useOrdersStore()
+const authStore    = useAuthStore()
+const { historicalOrders } = storeToRefs(ordersStore)
+const isOperario = computed(() => authStore.user?.role === 'operario')
 
-onMounted(() => store.fetchOrders())
+onMounted(() => ordersStore.fetchOrders())
 
 const generatingPdf = ref('')
 async function generatePdf(order) {
@@ -108,9 +121,16 @@ async function generatePdf(order) {
   }
 }
 
-const stats = computed(() => ({
-  total: historicalOrders.value.length,
-}))
+const filters = ref({ query: '', sede: 'all' })
+
+const filteredHistoricalOrders = computed(() => {
+  const query = filters.value.query.trim().toUpperCase()
+  return historicalOrders.value.filter(o => {
+    const matchQ    = !query || [o.code, o.product, o.operator].join(' ').toUpperCase().includes(query)
+    const matchSede = filters.value.sede === 'all' || o.sede === filters.value.sede
+    return matchQ && matchSede
+  })
+})
 
 const hoy = new Date().toLocaleDateString('es-CO', {
   weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
@@ -119,14 +139,12 @@ const hoy = new Date().toLocaleDateString('es-CO', {
 const fmtDate = (iso) => new Date(iso).toLocaleDateString('es-CO', {
   day: 'numeric', month: 'short', year: 'numeric',
 })
-
-const fmt = (iso) => iso
-  ? new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
-  : '—'
 </script>
 
 <style scoped>
-/* Cabecera */
+/* Cabecera + Filtros */
+.hist-header-wrap { display:flex; flex-direction:column; gap:1rem; }
+
 .hist-header {
   display: flex;
   align-items: center;
@@ -146,28 +164,50 @@ const fmt = (iso) => iso
 .hist-title { font-family:var(--font-display); font-size:1.15rem; font-weight:700; margin:0 0 0.2rem; color:var(--ink-900); }
 .hist-sub   { font-size:0.8rem; color:var(--ink-500); margin:0; text-transform:capitalize; }
 
-/* Stat card */
-.stats-row { display: flex; }
-.stats-row .stat-card { width: 100%; max-width: 220px; }
+/* Filtros */
+.hist-filters { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.hist-search-wrap {
+  flex: 1; min-width: 220px;
+  display: flex; align-items: center;
+  background: var(--paper); border: 1.5px solid var(--line);
+  border-radius: 0.75rem; overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.hist-search-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(66,130,194,0.1);
+}
+.hist-search-icon  { padding: 0 0.875rem; color: var(--ink-500); font-size: 0.85rem; flex-shrink:0; }
+.hist-search-input {
+  flex: 1; border: none; outline: none;
+  padding: 0.75rem 0.5rem 0.75rem 0;
+  font-size: 0.875rem; color: var(--ink-900);
+  background: transparent; font-family: var(--font-body);
+}
+.hist-search-input::placeholder { color: var(--ink-500); opacity: 0.6; }
 
-.stat-card {
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 0.375rem;
-  padding: 1.1rem 1.25rem;
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
+.hist-select-wrap {
+  min-width: 180px;
+  display: flex; align-items: center;
+  background: var(--paper); border: 1.5px solid var(--line);
+  border-radius: 0.75rem; overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.stat-icon {
-  width: 2.5rem; height: 2.5rem; min-width: 2.5rem;
-  border-radius: 0.375rem;
-  display: grid; place-items: center;
-  font-size: 1rem;
+.hist-select-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(66,130,194,0.1);
 }
-.stat-label { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08rem; color:var(--ink-500); margin:0 0 0.2rem; }
-.stat-num   { font-family:var(--font-display); font-size:1.75rem; font-weight:700; color:var(--ink-900); margin:0; line-height:1; }
+.hist-select-icon { padding: 0 0.875rem; color: var(--ink-500); font-size: 0.85rem; flex-shrink:0; }
+.hist-select {
+  flex: 1; border: none; outline: none;
+  padding: 0.75rem 0.5rem 0.75rem 0;
+  font-size: 0.875rem; color: var(--ink-900);
+  background: transparent; cursor: pointer; font-family: var(--font-body);
+  color-scheme: light;
+}
+html.dark .hist-select { color-scheme: dark; }
+.hist-select option { color: var(--ink-900); background: var(--paper); }
+html.dark .hist-select option { color: var(--ink-900); background: var(--surface); }
 
 /* Tabla historial */
 .hist-table-wrap {
@@ -199,17 +239,17 @@ const fmt = (iso) => iso
 
 /* Tabla */
 .hist-table { width:100%; border-collapse:collapse; font-size:0.865rem; }
-.hist-table th { padding:0.75rem 1rem; text-align:left; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.1rem; color:var(--ink-500); font-weight:700; border-bottom:2px solid var(--line); background:var(--surface); white-space:nowrap; }
-.hist-table td { padding:0.75rem 1rem; border-bottom:1px solid var(--line); vertical-align:middle; color:var(--ink-900); }
+.hist-table th { padding:0.8rem 1rem; text-align:left; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.1rem; color:var(--ink-500); font-weight:700; border-bottom:1px solid var(--line); background:var(--surface); white-space:nowrap; }
+.hist-table td { padding:0.85rem 1rem; border-bottom:1px solid var(--line); vertical-align:middle; color:var(--ink-900); }
 .hist-table tbody tr:last-child td { border-bottom:none; }
-.hist-table tbody tr:hover { background:var(--surface); }
+.hist-table tbody tr:hover { background:rgba(66,130,194,0.04); }
 
 .h-code    { font-weight:700; font-size:0.82rem; letter-spacing:0.04rem; color:var(--ink-500); }
 .h-product { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; }
-.h-chip    { display:inline-block; font-size:0.68rem; font-weight:600; padding:0.22rem 0.6rem; border-radius:3px; background:var(--surface); color:var(--ink-700); border:1px solid var(--line); white-space:nowrap; }
+.h-chip    { display:inline-flex; align-items:center; font-size:0.7rem; font-weight:600; padding:0.28rem 0.65rem; border-radius:0.45rem; background:var(--surface); color:var(--ink-700); border:1px solid var(--line); white-space:nowrap; }
 .h-muted   { color:var(--ink-500); font-size:0.83rem; }
 .h-date    { font-size:0.82rem; font-weight:600; color:var(--ink-700); white-space:nowrap; }
-.h-btn     { display:inline-flex; align-items:center; justify-content:center; width:1.75rem; height:1.75rem; border-radius:3px; border:1px solid var(--line); background:var(--surface); color:var(--ink-500); font-size:0.72rem; transition:background 0.12s, color 0.12s; cursor:pointer; }
+.h-btn     { display:inline-flex; align-items:center; justify-content:center; width:1.75rem; height:1.75rem; border-radius:3px; border:1px solid var(--line); background:var(--surface); color:var(--ink-500); font-size:0.72rem; transition:background 0.12s, color 0.12s; }
 .h-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
 .h-btn-pdf { color:var(--danger); border-color:rgba(196,69,54,0.2); background:rgba(196,69,54,0.1); }
 .h-btn-pdf:hover:not(:disabled) { background:var(--danger); color:#fff; border-color:var(--danger); }

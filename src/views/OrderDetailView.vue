@@ -1,5 +1,5 @@
 <template>
-  <section class="py-4 py-lg-5">
+  <section class="py-3 py-lg-4">
     <div class="container-lg">
 
       <!-- 404 -->

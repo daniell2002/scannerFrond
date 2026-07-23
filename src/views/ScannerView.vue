@@ -1,10 +1,10 @@
 <template>
   <section class="scanner-page">
     <div class="container-lg">
-      <div class="scanner-layout">
+      <div class="scanner-layout" :class="{ 'result-only': lastOrder }">
 
         <!-- ══ PANEL IZQUIERDO ══ -->
-        <div class="left-panel">
+        <div v-if="!lastOrder" class="left-panel">
 
           <!-- Cabecera azul -->
           <div class="left-header">
@@ -141,62 +141,47 @@
           <!-- Orden registrada -->
           <div v-else-if="lastOrder" class="order-result">
 
-            <!-- Banner -->
-            <div class="result-banner">
-              <div class="result-banner-inner">
-                <div class="result-banner-left">
-                  <span class="result-eyebrow"><i class="fas fa-check-circle me-1"></i>Orden registrada</span>
-                  <h2 class="result-name">{{ lastOrder.product }}</h2>
-                  <span class="result-code-tag">{{ lastOrder.code }}</span>
-                </div>
-                <div class="result-banner-right">
-                  <div class="result-stat">
-                    <span class="result-stat-label">Sede</span>
-                    <span class="result-stat-val">{{ lastOrder.sedeInfo.name }}</span>
-                  </div>
-                  <div class="result-stat">
-                    <span class="result-stat-label">Operador</span>
-                    <span class="result-stat-val">{{ lastOrder.operator }}</span>
-                  </div>
-                  <div class="result-stat">
-                    <span class="result-stat-label">Avance</span>
-                    <span class="result-stat-val">{{ lastOrder.completionRate }}%</span>
-                  </div>
-                </div>
-              </div>
-              <div class="result-prog-wrap">
-                <div class="result-prog-track">
-                  <div class="result-prog-fill" :style="{ width:`${lastOrder.completionRate}%` }"></div>
-                </div>
-                <span class="result-prog-pct">{{ lastOrder.completionRate }}%</span>
+            <!-- Cabecera -->
+            <div class="result-header">
+              <div class="result-header-icon"><i class="fas fa-check"></i></div>
+              <div>
+                <h3 class="result-header-title">Orden registrada</h3>
+                <p class="result-header-sub">Comprobante de registro</p>
               </div>
             </div>
 
-            <!-- Animación de registro -->
-            <div class="model-block">
-              <div class="model-block-head">
-                <span class="model-block-title"><i class="fas fa-check-circle me-2"></i>Orden registrada</span>
+            <!-- Recibo -->
+            <div class="receipt">
+              <h2 class="receipt-product">{{ lastOrder.product }}</h2>
+              <p class="receipt-code">{{ lastOrder.code }}</p>
+
+              <div class="receipt-divider"></div>
+
+              <div class="receipt-row">
+                <span class="receipt-row-label">Sede</span>
+                <span class="receipt-row-dots"></span>
+                <span class="receipt-row-val">{{ lastOrder.sedeInfo.name }}</span>
               </div>
-              <div class="scene-box">
-                <img src="/img/animacion.gif" class="result-gif" alt="Animación de orden registrada" />
-                <p class="scene-label">
-                  <i class="fas fa-play-circle me-1"></i>
-                  Registro completado correctamente
-                </p>
+              <div class="receipt-row">
+                <span class="receipt-row-label">Operador</span>
+                <span class="receipt-row-dots"></span>
+                <span class="receipt-row-val">{{ lastOrder.operator }}</span>
               </div>
+
+              <div class="receipt-divider"></div>
             </div>
 
             <!-- Acciones -->
             <div class="result-actions">
+              <button v-if="!isOperario" class="act-btn act-secondary" @click="clearScan">
+                <i class="fas fa-plus me-2"></i>Registrar nueva orden
+              </button>
               <RouterLink v-if="!isOperario" :to="`/orden/${lastOrder.code}`" class="act-btn act-primary">
-                <i class="fas fa-file-alt me-2"></i>Ver detalle completo
+                <i class="fas fa-file-alt me-2"></i>Ir a la orden
               </RouterLink>
               <button v-if="isOperario" class="act-btn act-primary" @click="clearScan">
                 <i class="fas fa-qrcode me-2"></i>Escanear otra orden
               </button>
-              <RouterLink v-if="!isOperario" to="/ordenes" class="act-btn act-secondary">
-                <i class="fas fa-table me-2"></i>Ir a tabla de órdenes
-              </RouterLink>
             </div>
 
           </div>
@@ -209,16 +194,18 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useOrdersStore } from '../stores/orders'
 import { useAuthStore }   from '../stores/auth'
 
 const ordersStore = useOrdersStore()
 const auth        = useAuthStore()
-const router      = useRouter()
 const { lastScannedCode, lastScanMessage, orders, sedes } = storeToRefs(ordersStore)
-const clearScan = () => { lastScannedCode.value = '' }
+const clearScan = () => {
+  lastScannedCode.value = ''
+  lastScanMessage.value = 'Escanea una orden para cargarla en el tablero operativo.'
+}
 
 onMounted(async () => {
   await ordersStore.fetchSedes({ silent: true })
@@ -236,11 +223,7 @@ const orderPhoto = ref('')
 const orderPhotoFile = ref(null)
 const ocrState   = ref('idle')
 
-const imagePreview = ref('')
-const shapePath    = ref('')
-const cvState      = ref('idle')
-const cvError      = ref('')
-let cvLib = null, tess = null
+let tess = null
 
 const lastOrder = computed(() =>
   lastScannedCode.value
@@ -265,8 +248,6 @@ const submit = async () => {
   orderCode.value = ''; orderName.value = ''
   if (!isOperario.value) orderSede.value = 'BOG'
   orderPhoto.value = ''; orderPhotoFile.value = null; ocrState.value = 'idle'
-  imagePreview.value = ''; shapePath.value = ''; cvState.value = 'idle'
-  if (!isOperario.value) router.push('/ordenes')
 }
 
 /* OCR */
@@ -296,41 +277,6 @@ const onPhoto = async (e) => {
   } catch { ocrState.value='manual' }
 }
 
-/* OpenCV */
-const loadCV = async () => {
-  if(cvLib)return cvLib
-  const{default:cv}=await import('@techstark/opencv-js')
-  if(!cv.Mat)await new Promise((res,rej)=>{const t=setTimeout(()=>rej(),30000);cv.onRuntimeInitialized=()=>{clearTimeout(t);res()}})
-  cvLib=cv;return cv
-}
-const onModelPhoto = async (e) => {
-  const file=e.target.files?.[0]; e.target.value=''; if(!file)return
-  shapePath.value='';cvError.value='';imagePreview.value=URL.createObjectURL(file);cvState.value='loading'
-  try {
-    const cv=await loadCV(); cvState.value='processing'
-    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=imagePreview.value})
-    const MAX=900;let w=img.width,h=img.height
-    if(Math.max(w,h)>MAX){const s=MAX/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s)}
-    const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h)
-    const src=cv.imread(c),gray=new cv.Mat(),blur=new cv.Mat(),bin=new cv.Mat()
-    cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);cv.GaussianBlur(gray,blur,new cv.Size(7,7),0)
-    cv.adaptiveThreshold(blur,bin,255,cv.ADAPTIVE_THRESH_GAUSSIAN_C,cv.THRESH_BINARY_INV,17,5)
-    const k3=cv.Mat.ones(3,3,cv.CV_8U),k2=cv.Mat.ones(2,2,cv.CV_8U)
-    cv.dilate(bin,bin,k3);cv.erode(bin,bin,k2);k3.delete();k2.delete()
-    const cont=new cv.MatVector(),hier=new cv.Mat()
-    cv.findContours(bin,cont,hier,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
-    let mA=0,mI=-1;for(let i=0;i<cont.size();i++){const a=cv.contourArea(cont.get(i));if(a>mA){mA=a;mI=i}}
-    if(mI===-1||mA<800)throw new Error('Sin forma.')
-    const ct=cont.get(mI),ap=new cv.Mat()
-    cv.approxPolyDP(ct,ap,cv.arcLength(ct,true)*0.012,true)
-    const bb=cv.boundingRect(ap),pts=[]
-    for(let i=0;i<ap.rows;i++)pts.push({x:ap.data32S[i*2],y:ap.data32S[i*2+1]})
-    const P=12,SZ=200-P*2
-    shapePath.value=pts.map((p,i)=>`${i?'L':'M'}${(((p.x-bb.x)/bb.width)*SZ+P).toFixed(1)} ${(((p.y-bb.y)/bb.height)*SZ+P).toFixed(1)}`).join(' ')+' Z'
-    ;[src,gray,blur,bin,cont,hier,ap].forEach(m=>m.delete()); cvState.value='done'
-  } catch(err){ cvError.value=err.message||'Error.'; cvState.value='error' }
-}
-const LAYERS = 10
 </script>
 
 <style scoped>
@@ -344,6 +290,25 @@ const LAYERS = 10
 }
 @media (max-width: 991px) {
   .scanner-layout { grid-template-columns: 1fr; }
+}
+
+/* Sin formulario: el resultado ocupa todo el espacio disponible */
+.scanner-layout.result-only {
+  grid-template-columns: 1fr;
+}
+.scanner-layout.result-only .right-panel {
+  width: 100%;
+  min-height: calc(100vh - var(--topbar-h) - 2.5rem);
+  display: flex;
+  flex-direction: column;
+}
+.scanner-layout.result-only .order-result {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.scanner-layout.result-only .result-actions {
+  margin-top: auto;
 }
 
 /* ══ PANEL IZQUIERDO ══ */
@@ -559,116 +524,70 @@ const LAYERS = 10
 }
 .photo-viewer-img { width:100%; max-height:520px; object-fit:contain; display:block; background:var(--surface); }
 
-/* Orden registrada */
-.order-result { border-radius:0.375rem; overflow:hidden; border:1px solid var(--line); box-shadow:var(--shadow-sm); }
+/* Orden registrada — estilo recibo */
+.order-result { border-radius:0.375rem; overflow:hidden; border:1px solid var(--line); box-shadow:var(--shadow-sm); background:var(--paper); }
 
-/* Banner resultado */
-.result-banner {
-  padding: 1.5rem;
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.4rem 1.75rem;
   background: var(--accent);
 }
-.result-banner-inner {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-  flex-wrap: wrap;
+.result-header-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 0.5rem;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 1.15rem;
 }
-.result-banner-left  { display:flex; flex-direction:column; gap:0.4rem; }
-.result-banner-right { display:flex; gap:1.5rem; flex-wrap:wrap; }
+.result-header-title { font-family:var(--font-display); font-size:1.15rem; font-weight:700; color:#fff; margin:0 0 0.15rem; }
+.result-header-sub   { font-size:0.8rem; color:rgba(255,255,255,0.65); margin:0; }
 
-.result-eyebrow {
-  font-size: 0.65rem; font-weight: 700; color: rgba(255,255,255,0.7);
-  text-transform: uppercase; letter-spacing: 0.1rem;
-}
-.result-name { font-family:var(--font-display); font-size:1.3rem; font-weight:700; color:#fff; margin:0; }
-.result-code-tag {
-  display: inline-block; font-size: 0.72rem; font-weight: 700;
-  background: rgba(255,255,255,0.2); color: #fff;
-  padding: 0.2rem 0.6rem; border-radius: 3px; letter-spacing: 0.06rem;
+.receipt {
+  padding: 2rem 2rem 0.5rem;
+  font-family: 'Courier New', ui-monospace, monospace;
 }
 
-.result-stat       { display:flex; flex-direction:column; gap:0.15rem; }
-.result-stat-label { font-size:0.58rem; color:rgba(255,255,255,0.55); text-transform:uppercase; letter-spacing:0.08rem; }
-.result-stat-val   { font-size:0.85rem; font-weight:600; color:#fff; }
-
-.result-prog-wrap  { display:flex; align-items:center; gap:0.75rem; }
-.result-prog-track { flex:1; height:5px; background:rgba(255,255,255,0.2); border-radius:2px; overflow:hidden; }
-.result-prog-fill  { height:100%; background:#fff; border-radius:2px; transition:width 0.4s ease; }
-.result-prog-pct   { font-size:0.78rem; font-weight:700; color:#fff; min-width:2.5rem; text-align:right; }
-
-/* Modelo 3D */
-.model-block { padding:1.25rem; background:var(--paper); border-bottom:1px solid var(--line); }
-.model-block-head {
-  display:flex; justify-content:space-between; align-items:center;
-  margin-bottom:0.875rem; flex-wrap:wrap; gap:0.5rem;
+.receipt-product {
+  font-family: var(--font-display);
+  font-size: 1.4rem; font-weight: 700; color: var(--ink-900);
+  margin: 0 0 0.4rem;
 }
-.model-block-title { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08rem; color:var(--ink-500); display:flex; align-items:center; }
-
-.model-upload-pill {
-  display: flex; align-items: center; gap: 0.4rem;
-  padding: 0.35rem 0.875rem;
-  border: 1px solid var(--line); border-radius: 999px;
-  font-size: 0.75rem; font-weight: 600;
-  color: var(--ink-700); background: var(--surface);
-  cursor: pointer; position: relative;
-  transition: border-color 0.12s, background 0.12s, color 0.12s;
-}
-.model-upload-pill:hover { border-color: var(--accent); color: var(--accent); background: rgba(66,130,194,0.05); }
-
-.cv-row      { display:flex; align-items:center; gap:0.5rem; font-size:0.78rem; color:var(--ink-700); margin-bottom:0.5rem; }
-.cv-err      { color:var(--danger); }
-.cv-ok       { color:var(--success); }
-
-.scene-box   { background:var(--surface); border-radius:0.375rem; border:1px solid var(--line); padding:1rem; display:flex; flex-direction:column; align-items:center; }
-.scene-stage { perspective:900px; width:200px; height:200px; display:flex; align-items:center; justify-content:center; }
-.scene-label { font-size:0.68rem; color:var(--ink-500); margin:0.5rem 0 0; text-align:center; }
-.result-gif {
-  width: min(100%, 300px);
-  border-radius: 0.375rem;
-  border: 1px solid var(--line);
-  background: var(--paper);
-  object-fit: cover;
+.receipt-code {
+  font-size: 0.95rem; color: var(--ink-500);
+  margin: 0;
+  letter-spacing: 0.03rem;
 }
 
-.rotator   { transform-style:preserve-3d; animation:rot3d 9s linear infinite; }
-@keyframes rot3d { from{transform:rotateX(22deg) rotateY(0deg);}to{transform:rotateX(22deg) rotateY(360deg);} }
-.ext-layer { display:block; width:200px; height:200px; position:absolute; top:0; left:0; transform-style:preserve-3d; }
-.ext-first { position:relative; }
-
-.plate { width:160px; height:160px; position:relative; transform-style:preserve-3d; }
-.pf { position:absolute; }
-.pf-front,.pf-back { width:160px; height:160px; left:0; top:0; }
-.pf-front {
-  transform:translateZ(7px);
-  background:
-    repeating-linear-gradient(0deg,transparent,transparent 19px,rgba(80,110,150,0.07) 19px,rgba(80,110,150,0.07) 20px),
-    repeating-linear-gradient(90deg,transparent,transparent 19px,rgba(80,110,150,0.07) 19px,rgba(80,110,150,0.07) 20px),
-    linear-gradient(145deg,#c8cfd8,#dde3ec 40%,#edf1f7 60%,#cdd4dd);
-  border:1px solid rgba(100,120,160,0.2);
+.receipt-divider {
+  border-top: 1px dashed var(--line);
+  margin: 1.4rem 0;
 }
-.pf-back  { transform:rotateY(180deg) translateZ(7px); background:linear-gradient(145deg,#8a9099,#a0a8b5); }
-.pf-right,.pf-left { width:14px; height:160px; left:73px; top:0; }
-.pf-right { transform:rotateY(90deg)  translateZ(80px); background:linear-gradient(180deg,#b0b8c4,#6b7280); }
-.pf-left  { transform:rotateY(-90deg) translateZ(80px); background:linear-gradient(180deg,#c5cad4,#8a9099); }
-.pf-top,.pf-bottom { width:160px; height:14px; left:0; top:73px; }
-.pf-top    { transform:rotateX(90deg)  translateZ(80px); background:linear-gradient(90deg,#c0c8d4,#d4dbe6 50%,#c0c8d4); }
-.pf-bottom { transform:rotateX(-90deg) translateZ(80px); background:linear-gradient(90deg,#6b7280,#8a9099 50%,#6b7280); }
+
+.receipt-row { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.4rem 0; }
+.receipt-row-label { font-size: 0.88rem; color: var(--ink-500); white-space: nowrap; }
+.receipt-row-dots  { flex: 1; border-bottom: 1px dotted var(--line); margin-bottom: 0.3rem; }
+.receipt-row-val   { font-size: 0.88rem; font-weight: 700; color: var(--ink-900); white-space: nowrap; }
 
 /* Acciones */
 .result-actions {
-  display: flex; gap: 0.75rem; padding: 1rem 1.25rem;
-  background: var(--surface); border-top: 1px solid var(--line); flex-wrap: wrap;
+  display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1.4rem 2rem;
+  flex-wrap: wrap;
 }
 .act-btn {
-  flex: 1; padding: 0.7rem 1rem; border-radius: 0.375rem;
-  font-size: 0.85rem; font-weight: 600;
+  padding: 0.65rem 1.75rem; border-radius: 0.375rem;
+  font-size: 0.9rem; font-weight: 600;
   display: flex; align-items: center; justify-content: center;
   transition: opacity 0.14s, background 0.14s;
 }
 .act-primary   { background: var(--accent); color: #fff; border: none; }
 .act-primary:hover  { opacity: 0.88; }
-.act-secondary { background: var(--paper); color: var(--ink-700); border: 1px solid var(--line); }
-.act-secondary:hover { background: var(--surface-2); }
+.act-secondary { background: none; color: var(--ink-700); border: 1px solid var(--line); }
+.act-secondary:hover { background: var(--surface); }
 </style>

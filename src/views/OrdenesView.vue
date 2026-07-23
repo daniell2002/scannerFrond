@@ -1,5 +1,5 @@
 <template>
-  <section class="py-4 py-lg-5">
+  <section class="py-3 py-lg-4">
     <div class="container-lg">
 
       <!-- Cabecera + Filtros -->
@@ -136,7 +136,7 @@ async function generatePdf(order) {
   display: grid; place-items: center;
   color: #fff; font-size: 1rem;
 }
-.ord-title    { font-family:var(--font-display); font-size:1.15rem; font-weight:700; margin:0 0 0.25rem; color:var(--ink-900); }
+.ord-title    { font-family:var(--font-display); font-size:1.15rem; font-weight:700; margin:0 0 0.2rem; color:var(--ink-900); }
 .ord-subtitle { font-size:0.8rem; color:var(--ink-500); margin:0; display:flex; align-items:center; gap:0.4rem; }
 .ord-count-badge {
   font-size:0.72rem; font-weight:700;
@@ -154,14 +154,12 @@ async function generatePdf(order) {
 }
 .ord-clear-btn:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 
-.ord-filters {
-  display: flex; gap: 0.75rem; flex-wrap: wrap;
-}
+.ord-filters { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 .ord-search-wrap {
   flex: 1; min-width: 220px;
   display: flex; align-items: center;
   background: var(--paper); border: 1.5px solid var(--line);
-  border-radius: 0.375rem; overflow: hidden;
+  border-radius: 0.75rem; overflow: hidden;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .ord-search-wrap:focus-within {
@@ -181,7 +179,7 @@ async function generatePdf(order) {
   min-width: 180px;
   display: flex; align-items: center;
   background: var(--paper); border: 1.5px solid var(--line);
-  border-radius: 0.375rem; overflow: hidden;
+  border-radius: 0.75rem; overflow: hidden;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .ord-select-wrap:focus-within {
@@ -196,29 +194,17 @@ async function generatePdf(order) {
   background: transparent; cursor: pointer; font-family: var(--font-body);
   color-scheme: light;
 }
-
-html.dark .ord-select {
-  color-scheme: dark;
-}
-
-.ord-select option {
-  color: var(--ink-900);
-  background: var(--paper);
-}
-
-html.dark .ord-select option {
-  color: var(--ink-900);
-  background: var(--surface);
-}
+html.dark .ord-select { color-scheme: dark; }
+.ord-select option { color: var(--ink-900); background: var(--paper); }
+html.dark .ord-select option { color: var(--ink-900); background: var(--surface); }
 
 .ord-table-wrap { background:var(--paper); border:1px solid var(--line); border-radius:0.375rem; overflow:hidden; box-shadow:var(--shadow-sm); }
-/* tabla */
 
 .ord-table { width:100%; border-collapse:collapse; font-size:0.865rem; }
-.ord-table th { padding:0.75rem 1rem; text-align:left; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.1rem; color:var(--ink-500); font-weight:700; border-bottom:2px solid var(--line); background:var(--surface); white-space:nowrap; }
-.ord-table td { padding:0.75rem 1rem; border-bottom:1px solid var(--line); vertical-align:middle; color:var(--ink-900); }
+.ord-table th { padding:0.8rem 1rem; text-align:left; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.1rem; color:var(--ink-500); font-weight:700; border-bottom:1px solid var(--line); background:var(--surface); white-space:nowrap; }
+.ord-table td { padding:0.85rem 1rem; border-bottom:1px solid var(--line); vertical-align:middle; color:var(--ink-900); }
 .ord-table tbody tr:last-child td { border-bottom:none; }
-.ord-table tbody tr:hover { background:var(--surface); }
+.ord-table tbody tr:hover { background:rgba(66,130,194,0.04); }
 .ord-code    { font-weight:700; font-size:0.82rem; letter-spacing:0.04rem; color:var(--ink-500); }
 .ord-product { max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; }
 .text-muted-sm { color:var(--ink-500); font-size:0.83rem; }
