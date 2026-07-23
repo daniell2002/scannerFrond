@@ -1,16 +1,17 @@
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+export const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 async function request(method, path, body) {
   const token = localStorage.getItem('auth_token')
+  const isFormData = body instanceof FormData
   let res
   try {
     res = await fetch(`${BASE}${path}`, {
       method,
       headers: {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      ...(body !== undefined ? { body: isFormData ? body : JSON.stringify(body) } : {}),
     })
   } catch {
     throw new Error('No hay conexión con el backend. Verifica que esté ejecutándose.')

@@ -10,17 +10,34 @@
   <!-- ── Sesión activa: layout unificado con sidebar dinámico ── -->
   <div v-else class="app-layout" :class="{ 'sidebar-open': sidebarOpen }">
 
+    <header class="topbar">
+      <button class="hamburger-btn" @click="sidebarOpen = !sidebarOpen">
+        <i class="fas fa-bars"></i>
+      </button>
+      <div class="topbar-brand">
+        <div class="topbar-brand-icon"><i class="fas fa-barcode"></i></div>
+        <span class="topbar-brand-title">
+          CONEXA
+          <span class="topbar-divider"></span>
+          <small>Ordenes</small>
+        </span>
+      </div>
+      <div class="topbar-right ms-auto">
+        <span class="topbar-date d-none d-md-inline">
+          <i class="fas fa-calendar-day me-2"></i>{{ today }}
+        </span>
+        <button class="theme-toggle" @click="toggleDark" :title="darkMode ? 'Modo claro' : 'Modo oscuro'">
+          <i class="fas" :class="darkMode ? 'fa-sun' : 'fa-moon'"></i>
+        </button>
+        <button class="theme-toggle" @click="doLogout" title="Cerrar sesión">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+    </header>
+
     <div class="sidebar-overlay" :class="{ 'is-active': sidebarOpen }" @click="sidebarOpen = false"></div>
 
     <aside class="sidebar">
-      <div class="sidebar-brand">
-        <div class="sidebar-brand-icon"><i class="fas fa-industry"></i></div>
-        <div class="sidebar-brand-text">
-          <p class="sidebar-brand-sub">LOGICONNET</p>
-          <span class="sidebar-brand-title">Ordenes</span>
-        </div>
-      </div>
-
       <div class="sidebar-scroll">
         <nav class="sidebar-nav">
           <span class="sidebar-section-label">Módulos</span>
@@ -54,24 +71,6 @@
     </aside>
 
     <div class="main-area">
-      <header class="topbar">
-        <button class="hamburger-btn" @click="sidebarOpen = !sidebarOpen">
-          <i class="fas fa-bars"></i>
-        </button>
-        <h2 class="topbar-heading">{{ pageTitle }}</h2>
-        <div class="topbar-right ms-auto">
-          <span class="topbar-date d-none d-md-inline">
-            <i class="fas fa-calendar-day me-2"></i>{{ today }}
-          </span>
-          <button class="theme-toggle" @click="toggleDark" :title="darkMode ? 'Modo claro' : 'Modo oscuro'">
-            <i class="fas" :class="darkMode ? 'fa-sun' : 'fa-moon'"></i>
-          </button>
-          <button class="theme-toggle" @click="doLogout" title="Cerrar sesión">
-            <i class="fas fa-sign-out-alt"></i>
-          </button>
-        </div>
-      </header>
-
       <main class="page-main">
         <RouterView />
       </main>
@@ -82,21 +81,37 @@
 
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { useOrdersStore } from './stores/orders'
 import NotificationsTray from './components/NotificationsTray.vue'
 
+const DESKTOP_BREAKPOINT = 1200
+
 const route       = useRoute()
 const router      = useRouter()
 const auth        = useAuthStore()
 const ordersStore = useOrdersStore()
-const sidebarOpen = ref(true)
+const sidebarOpen = ref(window.innerWidth >= DESKTOP_BREAKPOINT)
 const darkMode    = ref(localStorage.getItem('dark') === 'true')
+
+let isDesktop = window.innerWidth >= DESKTOP_BREAKPOINT
+function handleResize() {
+  const nowDesktop = window.innerWidth >= DESKTOP_BREAKPOINT
+  if (nowDesktop !== isDesktop) {
+    isDesktop = nowDesktop
+    sidebarOpen.value = nowDesktop
+  }
+}
 
 onMounted(() => {
   ordersStore.fetchSedes({ silent: true })
+  window.addEventListener('resize', handleResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
 })
 
 const isLogin = computed(() => route.name === 'login')
@@ -117,27 +132,12 @@ watch(darkMode, v => {
 }, { immediate: true })
 
 const toggleDark    = () => { darkMode.value = !darkMode.value }
-const closeOnMobile = () => { if (window.innerWidth < 1200) sidebarOpen.value = false }
+const closeOnMobile = () => { if (window.innerWidth < DESKTOP_BREAKPOINT) sidebarOpen.value = false }
 
 function doLogout() {
   auth.logout()
   router.push('/login')
 }
-
-const pageTitle = computed(() => {
-  const titles = {
-    scanner:        'Scanner',
-    ordenes:        'Órdenes de Producción',
-    historial:      'Historial de Escaneos',
-    estadisticas:   'Estadísticas',
-    sedes:          'Sedes de Producción',
-    usuarios:       'Usuarios del Sistema',
-    'order-detail': `Orden ${route.params.code}`,
-    'mis-ordenes':  'Mis Órdenes del Día',
-    'mi-historial': 'Mi Historial',
-  }
-  return titles[route.name] || 'LOGICONNET'
-})
 
 const today = computed(() =>
   new Date().toLocaleDateString('es-CO', {

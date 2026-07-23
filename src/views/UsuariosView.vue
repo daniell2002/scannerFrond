@@ -440,13 +440,13 @@ const sedeName = (code) => sedes.value.find(s => s.code === code)?.name || code 
 .modal-box { background:var(--paper); border:1px solid var(--line); border-radius:0.5rem; width:100%; max-width:620px; box-shadow:0 32px 80px rgba(0,0,0,0.25); overflow:hidden; }
 
 /* Cabecera azul */
-.modal-head { display:flex; align-items:center; gap:1rem; padding:1.25rem 1.5rem; background:var(--accent); }
-.modal-head-icon { width:2.5rem; height:2.5rem; min-width:2.5rem; background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3); border-radius:0.375rem; display:grid; place-items:center; color:#fff; font-size:1rem; }
+.modal-head { display:flex; align-items:center; gap:0.875rem; padding:1.1rem 1.25rem; background:var(--accent); }
+.modal-head-icon { width:2.25rem; height:2.25rem; min-width:2.25rem; background:rgba(255,255,255,0.16); border:1px solid rgba(255,255,255,0.28); border-radius:0.375rem; display:grid; place-items:center; color:#fff; font-size:0.9rem; }
 .modal-head-text { flex:1; min-width:0; }
-.modal-title { font-family:var(--font-display); font-size:1rem; font-weight:700; margin:0 0 0.1rem; color:#fff; }
-.modal-sub   { font-size:0.72rem; color:rgba(255,255,255,0.65); margin:0; }
-.modal-close { width:2rem; height:2rem; min-width:2rem; display:grid; place-items:center; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); border-radius:0.375rem; color:#fff; cursor:pointer; font-size:0.8rem; transition:background 0.12s; }
-.modal-close:hover { background:rgba(0,0,0,0.2); }
+.modal-title { font-family:var(--font-display); font-size:0.95rem; font-weight:600; margin:0 0 0.1rem; color:#fff; }
+.modal-sub   { font-size:0.7rem; color:rgba(255,255,255,0.65); margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.modal-close { width:1.85rem; height:1.85rem; min-width:1.85rem; display:grid; place-items:center; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.22); border-radius:0.375rem; color:#fff; cursor:pointer; font-size:0.72rem; transition:background 0.14s; }
+.modal-close:hover { background:rgba(255,255,255,0.26); }
 
 .modal-body { padding:1.25rem 1.5rem; display:flex; flex-direction:column; }
 .modal-foot { display:flex; gap:0.75rem; justify-content:flex-end; padding:0.875rem 1.5rem; border-top:1px solid var(--line); background:var(--surface); }

@@ -120,7 +120,7 @@ export const useOrdersStore = defineStore('orders', () => {
     }
   }
 
-  async function registerOrder(rawCode, productName, sedeCode = 'BOG', operatorName) {
+  async function registerOrder(rawCode, productName, sedeCode = 'BOG', operatorName, photoFile) {
     const code = normalizeValue(rawCode)
     if (!code) {
       lastScanMessage.value = 'Ingresa un código de orden válido.'
@@ -128,7 +128,14 @@ export const useOrdersStore = defineStore('orders', () => {
       return { ok: false }
     }
     try {
-      const order = await api.post('/api/orders', { code, product: productName?.trim() || 'Sin nombre', sede: sedeCode, operator: operatorName })
+      const form = new FormData()
+      form.append('code', code)
+      form.append('product', productName?.trim() || 'Sin nombre')
+      form.append('sede', sedeCode)
+      if (operatorName) form.append('operator', operatorName)
+      if (photoFile) form.append('photo', photoFile)
+
+      const order = await api.post('/api/orders', form)
       upsertOrder(order)
       lastScannedCode.value = order.code
       lastScanMessage.value = `Orden ${order.code} registrada en ${sedeMap.value[order.sede]?.name || order.sede}.`

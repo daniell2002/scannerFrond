@@ -16,145 +16,173 @@
 
         <!-- Cabecera -->
         <div class="det-head mb-4">
-          <div class="det-head-accent"></div>
-          <div class="det-head-body">
-            <div class="det-head-top">
-              <RouterLink to="/ordenes" class="det-back">
-                <i class="fas fa-arrow-left me-1"></i>Órdenes
-              </RouterLink>
-              <div class="det-head-badges">
-                <span class="det-badge" :class="{
-                  'db-proceso':   order.status === 'En proceso',
-                  'db-completa':  order.status === 'Completada',
-                  'db-pendiente': order.status === 'Pendiente',
-                  'db-bloqueada': order.status === 'Bloqueada',
-                }">{{ order.status }}</span>
-                <span class="det-badge" :class="{
-                  'db-alta':  order.priority === 'Alta',
-                  'db-media': order.priority === 'Media',
-                  'db-baja':  order.priority === 'Baja',
-                }">{{ order.priority }}</span>
-              </div>
-            </div>
-            <h1 class="det-title">{{ order.product }}</h1>
-            <div class="det-meta">
-              <span class="det-code">{{ order.code }}</span>
-              <span class="det-dot"></span>
-              <span class="det-sede">{{ order.sedeInfo.name }}</span>
-              <span class="det-dot"></span>
-              <span class="det-sede">Línea {{ order.line }}</span>
+          <div class="det-head-left">
+            <div class="det-head-icon"><i class="fas fa-file-invoice"></i></div>
+            <div>
+              <h1 class="det-title">Información de la orden</h1>
+              <p class="det-sub">{{ order.code }} · {{ order.product }}</p>
             </div>
           </div>
+          <RouterLink to="/ordenes" class="det-back">
+            <i class="fas fa-arrow-left me-1"></i>Órdenes
+          </RouterLink>
         </div>
 
-        <!-- Progreso -->
-        <div class="prog-card mb-4">
-          <div class="prog-nums">
-            <div class="prog-num-item">
-              <span class="prog-n">{{ order.quantity.toLocaleString() }}</span>
-              <span class="prog-l">Programadas</span>
-            </div>
-            <div class="prog-divider"></div>
-            <div class="prog-num-item">
-              <span class="prog-n prog-n-done">{{ order.completed.toLocaleString() }}</span>
-              <span class="prog-l">Completadas</span>
-            </div>
-            <div class="prog-divider"></div>
-            <div class="prog-num-item">
-              <span class="prog-n">{{ (order.quantity - order.completed).toLocaleString() }}</span>
-              <span class="prog-l">Restantes</span>
-            </div>
-          </div>
-          <div class="prog-bar-row">
-            <div class="prog-track">
-              <div class="prog-fill" :style="{ width: `${order.completionRate}%` }"></div>
-            </div>
-            <span class="prog-pct">{{ order.completionRate }}%</span>
-          </div>
-        </div>
+        <!-- Detalles + Sede a la izquierda, evidencia a la derecha -->
+        <div class="det-cols mb-4" :class="{ 'det-cols-single': !order.photoUrl }">
 
-        <!-- Dos columnas -->
-        <div class="det-cols">
+          <div class="det-cols-left">
 
-          <!-- Detalles -->
-          <div class="det-card">
-            <div class="det-card-head">
-              <div class="det-card-icon"><i class="fas fa-file-alt"></i></div>
-              <span>Detalles de la orden</span>
-            </div>
-            <div class="det-card-body">
-              <div class="field-row">
-                <span class="field-k">Responsable</span>
-                <span class="field-v">{{ order.operator }}</span>
+            <!-- Detalles -->
+            <div class="det-card">
+              <div class="det-card-head">
+                <div class="det-card-icon"><i class="fas fa-file-alt"></i></div>
+                <span>Detalles de la orden</span>
               </div>
-              <div class="field-row">
-                <span class="field-k">Lote</span>
-                <span class="field-v">{{ order.batch }}</span>
-              </div>
-              <div class="field-row">
-                <span class="field-k">Línea</span>
-                <span class="field-v">{{ order.line }}</span>
-              </div>
-              <div class="field-row">
-                <span class="field-k">Última lectura</span>
-                <span class="field-v">
-                  {{ order.scannedAt
-                    ? new Date(order.scannedAt).toLocaleString('es-CO')
-                    : 'Sin escaneo' }}
-                </span>
+              <div class="det-card-body">
+                <div class="field-row">
+                  <span class="field-k">Responsable</span>
+                  <span class="field-v">{{ order.operator }}</span>
+                </div>
+                <div class="field-row">
+                  <span class="field-k">Fecha creación</span>
+                  <span class="field-v">
+                    {{ order.scannedAt
+                      ? new Date(order.scannedAt).toLocaleDateString('es-CO')
+                      : 'Sin escaneo' }}
+                  </span>
+                </div>
+                <div class="field-row" v-if="order.scannedAt">
+                  <span class="field-k">Hora creación</span>
+                  <span class="field-v">{{ new Date(order.scannedAt).toLocaleTimeString('es-CO') }}</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Sede -->
-          <div class="det-card">
-            <div class="det-card-head">
-              <div class="det-card-icon"><i class="fas fa-industry"></i></div>
-              <span>Sede de producción</span>
-            </div>
-            <div class="det-card-body">
-              <div class="sede-row">
-                <div>
+            <!-- Sede -->
+            <div class="det-card">
+              <div class="det-card-head">
+                <div class="det-card-icon"><i class="fas fa-building"></i></div>
+                <span>Sede de producción</span>
+              </div>
+              <div class="det-card-body">
+                <div class="sede-row">
                   <p class="sede-name">{{ order.sedeInfo.name }}</p>
                   <p class="sede-city"><i class="fas fa-location-dot me-1"></i>{{ order.sedeInfo.city }}, Colombia</p>
                 </div>
+                <div class="field-row">
+                  <span class="field-k">Coordinador</span>
+                  <span class="field-v">{{ order.sedeInfo.manager }}</span>
+                </div>
+                <div class="field-row">
+                  <span class="field-k">Código sede</span>
+                  <span class="field-v">{{ order.sede }}</span>
+                </div>
               </div>
-              <div class="field-row">
-                <span class="field-k">Coordinador</span>
-                <span class="field-v">{{ order.sedeInfo.manager }}</span>
-              </div>
-              <div class="field-row">
-                <span class="field-k">Código sede</span>
-                <span class="field-v">{{ order.sede }}</span>
-              </div>
-              <div class="field-row">
-                <span class="field-k">Líneas activas</span>
-                <span class="field-v">{{ order.sedeInfo.activeLines }}</span>
-              </div>
-              <div class="lines-row">
-                <span v-for="n in order.sedeInfo.activeLines" :key="n"
-                  class="line-pill"
-                  :class="{ 'line-active': order.line === `L-0${n}` }">
-                  L-0{{ n }}
-                </span>
-              </div>
+            </div>
+
+          </div>
+
+          <!-- Evidencia fotográfica -->
+          <div v-if="order.photoUrl" class="det-card">
+            <div class="det-card-head">
+              <div class="det-card-icon"><i class="fas fa-camera"></i></div>
+              <span>Evidencia fotográfica</span>
+              <button class="det-photo-expand" @click="openPhotoModal" title="Expandir evidencia">
+                <i class="fas fa-expand"></i>
+              </button>
+            </div>
+            <div class="det-photo-wrap">
+              <img :src="photoFullUrl" alt="Evidencia de la orden" class="det-photo" @click="openPhotoModal" />
             </div>
           </div>
 
         </div>
+
       </template>
     </div>
+
+    <!-- Modal de evidencia: zoom + arrastre -->
+    <Transition name="photo-fade">
+      <div v-if="photoModalOpen" class="photo-modal-overlay" @click.self="closePhotoModal">
+        <div class="photo-modal-box">
+          <div class="photo-modal-head">
+            <span><i class="fas fa-camera me-2"></i>Evidencia fotográfica</span>
+            <div class="photo-modal-actions">
+              <button class="photo-modal-btn" @click="zoomOut" title="Alejar"><i class="fas fa-search-minus"></i></button>
+              <button class="photo-modal-btn" @click="resetView" title="Restablecer"><i class="fas fa-compress"></i></button>
+              <button class="photo-modal-btn" @click="zoomIn" title="Acercar"><i class="fas fa-search-plus"></i></button>
+              <button class="photo-modal-btn photo-modal-close" @click="closePhotoModal" title="Cerrar"><i class="fas fa-times"></i></button>
+            </div>
+          </div>
+          <div
+            class="photo-modal-stage"
+            :class="{ 'is-dragging': dragging }"
+            @mousedown="startDrag"
+            @mousemove="onDrag"
+            @mouseup="endDrag"
+            @mouseleave="endDrag"
+            @touchstart="startDrag"
+            @touchmove="onDrag"
+            @touchend="endDrag"
+            @wheel.prevent="onWheel"
+          >
+            <img
+              :src="photoFullUrl" alt="Evidencia de la orden" class="photo-modal-img"
+              :style="{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }"
+              draggable="false"
+            />
+          </div>
+          <p class="photo-modal-hint">Arrastra para mover · rueda del mouse o los botones para acercar/alejar</p>
+        </div>
+      </div>
+    </Transition>
   </section>
 </template>
 
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useOrdersStore } from '../stores/orders'
+import { BASE } from '../api'
 
 const route = useRoute()
 const order = computed(() => useOrdersStore().getOrderByCode(route.params.code))
+const photoFullUrl = computed(() => order.value?.photoUrl ? `${BASE}${order.value.photoUrl}` : '')
+
+/* Modal de evidencia: zoom + arrastre */
+const photoModalOpen = ref(false)
+const zoom = ref(1)
+const pan  = ref({ x: 0, y: 0 })
+const dragging = ref(false)
+let dragStart = { x: 0, y: 0 }
+let panStart  = { x: 0, y: 0 }
+
+const openPhotoModal  = () => { photoModalOpen.value = true; resetView() }
+const closePhotoModal = () => { photoModalOpen.value = false }
+const resetView = () => { zoom.value = 1; pan.value = { x: 0, y: 0 } }
+const zoomIn  = () => { zoom.value = Math.min(4, +(zoom.value + 0.25).toFixed(2)) }
+const zoomOut = () => { zoom.value = Math.max(0.5, +(zoom.value - 0.25).toFixed(2)) }
+const onWheel = (e) => { e.deltaY < 0 ? zoomIn() : zoomOut() }
+
+const pointerPos = (e) => e.touches ? e.touches[0] : e
+
+const startDrag = (e) => {
+  dragging.value = true
+  const p = pointerPos(e)
+  dragStart = { x: p.clientX, y: p.clientY }
+  panStart  = { ...pan.value }
+}
+const onDrag = (e) => {
+  if (!dragging.value) return
+  const p = pointerPos(e)
+  pan.value = {
+    x: panStart.x + (p.clientX - dragStart.x),
+    y: panStart.y + (p.clientY - dragStart.y),
+  }
+}
+const endDrag = () => { dragging.value = false }
 </script>
 
 <style scoped>
@@ -166,86 +194,45 @@ const order = computed(() => useOrdersStore().getOrderByCode(route.params.code))
 .nf-btn   { display:inline-flex; align-items:center; padding:0.6rem 1.25rem; background:var(--accent); color:#fff; border-radius:0.375rem; font-size:0.875rem; font-weight:600; transition:opacity 0.14s; }
 .nf-btn:hover { opacity:0.85; }
 
-/* Cabecera */
+/* Cabecera — mismo patrón que Órdenes/Historial: icono + título + subtítulo */
 .det-head {
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 0.375rem;
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  display: flex;
-}
-.det-head-accent {
-  width: 4px;
-  min-width: 4px;
-  background: var(--accent);
-}
-.det-head-body {
-  flex: 1;
-  padding: 1.25rem 1.5rem;
-  min-width: 0;
-}
-.det-head-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  gap: 1rem;
   flex-wrap: wrap;
-}
-.det-back {
-  display: inline-flex; align-items: center; gap: 0.35rem;
-  font-size: 0.78rem; font-weight: 600; color: var(--ink-500);
-  padding: 0.3rem 0.75rem;
-  background: var(--surface); border: 1px solid var(--line);
-  border-radius: 0.375rem;
-  transition: background 0.12s, color 0.12s;
-}
-.det-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
-
-.det-head-badges { display:flex; gap:0.4rem; flex-wrap:wrap; }
-
-.det-badge {
-  font-size: 0.68rem; font-weight: 700;
-  padding: 0.28rem 0.7rem; border-radius: 3px;
-}
-.db-proceso  { background:rgba(54,80,108,0.1);   color:var(--ink-700); }
-.db-completa { background:rgba(46,139,87,0.12);  color:var(--success); }
-.db-pendiente{ background:rgba(66,130,194,0.12); color:var(--accent); }
-.db-bloqueada{ background:rgba(196,69,54,0.1);   color:var(--danger); }
-.db-alta     { background:rgba(196,69,54,0.1);   color:var(--danger); }
-.db-media    { background:rgba(66,130,194,0.1);  color:var(--accent); }
-.db-baja     { background:rgba(46,139,87,0.12);  color:var(--success); }
-
-.det-title { font-family:var(--font-display); font-size:1.5rem; font-weight:700; color:var(--ink-900); margin:0 0 0.5rem; }
-.det-meta  { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; }
-.det-code  { font-size:0.75rem; font-weight:700; color:var(--ink-500); background:var(--surface); border:1px solid var(--line); padding:0.2rem 0.6rem; border-radius:3px; letter-spacing:0.05rem; }
-.det-sede  { font-size:0.78rem; color:var(--ink-500); }
-.det-dot   { width:3px; height:3px; border-radius:50%; background:var(--ink-500); opacity:0.4; }
-
-/* Progreso */
-.prog-card {
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 0.375rem;
   padding: 1.25rem 1.5rem;
   box-shadow: var(--shadow-sm);
 }
-.prog-nums   { display:flex; align-items:center; margin-bottom:1rem; }
-.prog-num-item { flex:1; display:flex; flex-direction:column; align-items:center; gap:0.25rem; }
-.prog-divider  { width:1px; height:2.5rem; background:var(--line); flex-shrink:0; }
-.prog-n        { font-family:var(--font-display); font-size:1.6rem; font-weight:700; color:var(--ink-900); }
-.prog-n-done   { color:var(--accent); }
-.prog-l        { font-size:0.6rem; text-transform:uppercase; letter-spacing:0.1rem; color:var(--ink-500); }
+.det-head-left { display:flex; align-items:center; gap:1rem; min-width:0; }
+.det-head-icon {
+  width: 2.75rem; height: 2.75rem; min-width: 2.75rem;
+  background: var(--accent); border-radius: 0.375rem;
+  display: grid; place-items: center;
+  color: #fff; font-size: 1rem;
+}
 
-.prog-bar-row  { display:flex; align-items:center; gap:0.875rem; }
-.prog-track    { flex:1; height:8px; background:var(--surface-2); border-radius:2px; overflow:hidden; }
-.prog-fill     { height:100%; background:linear-gradient(90deg,var(--accent) 0%,rgba(66,130,194,0.6) 100%); border-radius:2px; transition:width 0.6s ease; }
-.prog-pct      { font-family:var(--font-display); font-size:1rem; font-weight:700; color:var(--ink-900); min-width:44px; text-align:right; }
+.det-title { font-family:var(--font-display); font-size:1.15rem; font-weight:700; margin:0 0 0.2rem; color:var(--ink-900); }
+.det-sub   { font-size:0.8rem; color:var(--ink-500); margin:0; }
+
+.det-back {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.45rem 0.875rem;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 0.375rem; font-size: 0.8rem; font-weight: 600;
+  color: var(--ink-700);
+  transition: background 0.14s, color 0.14s;
+}
+.det-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 /* Columnas */
-.det-cols { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-@media (max-width:767px) { .det-cols { grid-template-columns:1fr; } }
+.det-cols { display:grid; grid-template-columns: 260px 1fr; gap:1rem; align-items:start; }
+.det-cols.det-cols-single { grid-template-columns: 1fr; }
+.det-cols-left { display:flex; flex-direction:column; gap:1rem; min-width:0; }
+@media (max-width:900px) { .det-cols { grid-template-columns:1fr; } }
 
 .det-card { background:var(--paper); border:1px solid var(--line); border-radius:0.375rem; overflow:hidden; box-shadow:var(--shadow-sm); }
 
@@ -279,7 +266,84 @@ const order = computed(() => useOrdersStore().getOrderByCode(route.params.code))
 .sede-name { font-weight:700; font-size:0.95rem; color:var(--ink-900); margin:0 0 0.2rem; }
 .sede-city { font-size:0.78rem; color:var(--ink-500); margin:0; }
 
-.lines-row { display:flex; gap:0.4rem; flex-wrap:wrap; padding:0.875rem 0 0.5rem; }
-.line-pill { font-size:0.7rem; font-weight:700; padding:0.28rem 0.6rem; border-radius:3px; background:var(--surface); color:var(--ink-500); border:1px solid var(--line); }
-.line-active { background:var(--accent); color:#fff; border-color:var(--accent); }
+/* Evidencia fotográfica */
+.det-card-head { position: relative; }
+.det-photo-expand {
+  margin-left: auto;
+  width: 1.75rem; height: 1.75rem; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--paper); border: 1px solid var(--line);
+  border-radius: 3px; color: var(--ink-500);
+  font-size: 0.68rem; cursor: pointer;
+  transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+.det-photo-expand:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.det-photo-wrap { padding: 1.25rem; background: var(--surface); }
+.det-photo {
+  display: block; margin: 0 auto;
+  width: 100%; max-height: 620px; object-fit: contain;
+  border-radius: 0.375rem; border: 1px solid var(--line);
+  background: var(--paper);
+  cursor: zoom-in;
+}
+
+/* Modal de evidencia: zoom + arrastre */
+.photo-modal-overlay {
+  position: fixed; inset: 0; z-index: 600;
+  background: rgba(0,0,0,0.72); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem;
+}
+.photo-modal-box {
+  background: var(--paper);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  width: 100%; max-width: 900px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.4);
+  display: flex; flex-direction: column;
+}
+.photo-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding: 0.875rem 1.25rem;
+  background: var(--accent); color: #fff;
+  font-size: 0.85rem; font-weight: 700;
+}
+.photo-modal-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+.photo-modal-btn {
+  width: 1.85rem; height: 1.85rem;
+  display: grid; place-items: center;
+  background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 0.375rem; color: #fff; font-size: 0.72rem; cursor: pointer;
+  transition: background 0.14s, border-color 0.14s;
+}
+.photo-modal-btn:hover { background: rgba(255,255,255,0.28); }
+.photo-modal-close:hover { background: var(--danger); border-color: var(--danger); }
+
+.photo-modal-stage {
+  position: relative;
+  height: min(75vh, 640px);
+  overflow: hidden;
+  background:
+    linear-gradient(45deg, var(--surface) 25%, transparent 25%, transparent 75%, var(--surface) 75%) 0 0/20px 20px,
+    linear-gradient(45deg, var(--surface) 25%, var(--paper) 25%, var(--paper) 75%, var(--surface) 75%) 10px 10px/20px 20px;
+  cursor: grab;
+  touch-action: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.photo-modal-stage.is-dragging { cursor: grabbing; }
+.photo-modal-img {
+  max-width: 100%; max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  pointer-events: none;
+}
+.photo-modal-hint {
+  text-align: center; font-size: 0.7rem; color: var(--ink-500);
+  padding: 0.6rem; margin: 0; background: var(--paper);
+  border-top: 1px solid var(--line);
+}
+
+.photo-fade-enter-active, .photo-fade-leave-active { transition: opacity 0.2s ease; }
+.photo-fade-enter-from, .photo-fade-leave-to { opacity: 0; }
 </style>

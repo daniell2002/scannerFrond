@@ -93,9 +93,14 @@
                 <td class="h-muted">{{ o.operator }}</td>
                 <td class="h-date">{{ fmtDate(o.scheduledAt) }}</td>
                 <td>
-                  <RouterLink :to="`/orden/${o.code}`" class="h-btn">
-                    <i class="fas fa-arrow-right"></i>
-                  </RouterLink>
+                  <div class="d-flex gap-1">
+                    <button class="h-btn h-btn-pdf" @click="generatePdf(o)" :disabled="generatingPdf === o.code" title="Descargar PDF">
+                      <i class="fas" :class="generatingPdf === o.code ? 'fa-spinner fa-spin' : 'fa-file-pdf'"></i>
+                    </button>
+                    <RouterLink :to="`/orden/${o.code}`" class="h-btn">
+                      <i class="fas fa-arrow-right"></i>
+                    </RouterLink>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -108,15 +113,27 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useOrdersStore } from '../stores/orders'
+import { generateOrderPdf } from '../utils/orderPdf'
 
 const store = useOrdersStore()
 const { historicalOrders } = storeToRefs(store)
 
 onMounted(() => store.fetchOrders())
+
+const generatingPdf = ref('')
+async function generatePdf(order) {
+  if (generatingPdf.value) return
+  generatingPdf.value = order.code
+  try {
+    await generateOrderPdf(order)
+  } finally {
+    generatingPdf.value = ''
+  }
+}
 
 const stats = computed(() => ({
   total:       historicalOrders.value.length,
@@ -226,6 +243,9 @@ const fmt = (iso) => iso
 .h-chip    { display:inline-block; font-size:0.68rem; font-weight:600; padding:0.22rem 0.6rem; border-radius:3px; background:var(--surface); color:var(--ink-700); border:1px solid var(--line); white-space:nowrap; }
 .h-muted   { color:var(--ink-500); font-size:0.83rem; }
 .h-date    { font-size:0.82rem; font-weight:600; color:var(--ink-700); white-space:nowrap; }
-.h-btn     { display:inline-flex; align-items:center; justify-content:center; width:1.75rem; height:1.75rem; border-radius:3px; border:1px solid var(--line); background:var(--surface); color:var(--ink-500); font-size:0.72rem; transition:background 0.12s, color 0.12s; }
+.h-btn     { display:inline-flex; align-items:center; justify-content:center; width:1.75rem; height:1.75rem; border-radius:3px; border:1px solid var(--line); background:var(--surface); color:var(--ink-500); font-size:0.72rem; transition:background 0.12s, color 0.12s; cursor:pointer; }
 .h-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+.h-btn-pdf { color:var(--danger); border-color:rgba(196,69,54,0.2); background:rgba(196,69,54,0.1); }
+.h-btn-pdf:hover:not(:disabled) { background:var(--danger); color:#fff; border-color:var(--danger); }
+.h-btn-pdf:disabled { opacity:0.6; cursor:not-allowed; }
 </style>

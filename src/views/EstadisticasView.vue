@@ -148,7 +148,7 @@
         <!-- Historial por sede -->
         <div class="e-card">
           <div class="e-card-head">
-            <div class="e-card-icon"><i class="fas fa-industry"></i></div>
+            <div class="e-card-icon"><i class="fas fa-building"></i></div>
             <div>
               <p class="e-card-title">Historial por sede</p>
               <p class="e-card-sub">Órdenes anteriores por sede</p>
