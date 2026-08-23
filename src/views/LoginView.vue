@@ -1,123 +1,85 @@
 <template>
-  <div class="login-bg">
-    <div class="login-shell">
-      <section class="login-showcase">
-        <div class="login-showcase-badge">
-          <i class="fas fa-qrcode"></i>
-          <span>Control de operaciones</span>
-        </div>
+  <div class="login-page">
 
-        <div class="login-showcase-copy">
-          <p class="login-brand-sub">CONEXA</p>
-          <h1 class="login-showcase-title">Gestiona tus órdenes con una vista limpia, rápida y segura.</h1>
-          <p class="login-showcase-text">
-            Entra al sistema para revisar movimientos, consultar historiales y mantener el flujo de trabajo al día.
-          </p>
-        </div>
+    <!-- ── Panel izquierdo: marca ── -->
+    <div class="login-left">
+      <div class="login-left-brand">
+        <div class="login-left-icon"><i class="fas fa-project-diagram"></i></div>
+        <span>CONEXA</span>
+      </div>
 
-        <div class="login-showcase-stats">
-          <article>
-            <strong>24/7</strong>
-            <span>Disponibilidad</span>
-          </article>
-          <article>
-            <strong>1 clic</strong>
-            <span>Acceso rápido</span>
-          </article>
-          <article>
-            <strong>100%</strong>
-            <span>Enfoque operativo</span>
-          </article>
-        </div>
+      <h1 class="login-left-title">Gestión de órdenes de producción, todo en un solo lugar.</h1>
+      <p class="login-left-desc">Escanea, registra y controla las órdenes de tus plantas de producción desde cualquier sede.</p>
 
-        <div class="login-showcase-card">
-          <div class="login-showcase-card-row">
-            <span class="login-showcase-dot"></span>
-            <span>Monitoreo de órdenes y sedes en tiempo real</span>
-          </div>
-          <div class="login-showcase-card-row">
-            <span class="login-showcase-dot"></span>
-            <span>Diseño pensado para escritorio y móvil</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="login-card">
-        <div class="login-card-inner">
-
-          <div class="lc-logo">
-            <div class="lc-logo-icon">
-              <i class="fas fa-barcode"></i>
-            </div>
-            <div class="lc-logo-text">
-              <span class="lc-logo-name">CONEXA</span>
-              <span class="lc-logo-sub">Órdenes</span>
-            </div>
-          </div>
-
-          <div class="lc-header">
-            <h2 class="lc-title">Bienvenido de vuelta</h2>
-            <p class="lc-desc">Ingresa tus credenciales para acceder al sistema</p>
-          </div>
-
-          <form @submit.prevent="handleLogin" novalidate class="lc-form">
-            <div class="lc-field">
-              <label class="lc-label">Usuario</label>
-              <div class="lc-input-wrap">
-                <i class="fas fa-user lc-icon"></i>
-                <input
-                  v-model="username"
-                  type="text"
-                  class="lc-input"
-                  placeholder="Ingresa tu usuario"
-                  autocomplete="username"
-                  required
-                />
-              </div>
-            </div>
-
-            <div class="lc-field">
-              <label class="lc-label">Contraseña</label>
-              <div class="lc-input-wrap">
-                <i class="fas fa-lock lc-icon"></i>
-                <input
-                  v-model="password"
-                  :type="showPass ? 'text' : 'password'"
-                  class="lc-input"
-                  placeholder="Ingresa tu contraseña"
-                  autocomplete="current-password"
-                  required
-                />
-                <button type="button" class="lc-eye" @click="showPass = !showPass" tabindex="-1">
-                  <i class="fas" :class="showPass ? 'fa-eye-slash' : 'fa-eye'"></i>
-                </button>
-              </div>
-            </div>
-
-            <label class="lc-remember">
-              <input type="checkbox" v-model="remember" />
-              Recordar mi usuario
-            </label>
-
-            <div v-if="error" class="lc-error">
-              <i class="fas fa-circle-exclamation"></i>
-              <span>{{ error }}</span>
-            </div>
-
-            <button type="submit" class="lc-btn" :disabled="loading">
-              <span v-if="loading">
-                <i class="fas fa-spinner fa-spin"></i> Verificando…
-              </span>
-              <span v-else>
-                Ingresar <i class="fas fa-arrow-right"></i>
-              </span>
-            </button>
-          </form>
-
-          <p class="lc-footer">Solo para personal autorizado</p>
-        </div>
-      </section>
+      <div class="login-left-features">
+        <div class="login-left-feature"><i class="fas fa-qrcode"></i>Escaneo rápido de órdenes</div>
+        <div class="login-left-feature"><i class="fas fa-chart-bar"></i>Estadísticas en tiempo real</div>
+        <div class="login-left-feature"><i class="fas fa-building"></i>Gestión multi-sede</div>
+      </div>
     </div>
+
+    <!-- ── Panel derecho: formulario ── -->
+    <div class="login-right">
+      <div class="lc-card">
+
+        <div class="lc-header">
+          <h1 class="lc-title">Bienvenido de vuelta</h1>
+          <p class="lc-desc">Ingresa tus credenciales para acceder al sistema</p>
+        </div>
+
+        <form @submit.prevent="handleLogin" novalidate class="lc-form">
+          <div class="mf-field">
+            <label class="mf-label">Usuario</label>
+            <div class="mf-wrap">
+              <i class="fas fa-user mf-icon"></i>
+              <input
+                v-model="username"
+                type="text"
+                class="mf-inp"
+                placeholder="Ingresa tu usuario"
+                autocomplete="username"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="mf-field">
+            <label class="mf-label">Contraseña</label>
+            <div class="mf-wrap">
+              <i class="fas fa-lock mf-icon"></i>
+              <input
+                v-model="password"
+                :type="showPass ? 'text' : 'password'"
+                class="mf-inp"
+                placeholder="Ingresa tu contraseña"
+                autocomplete="current-password"
+                required
+              />
+              <button type="button" class="mf-eye" @click="showPass = !showPass">
+                <i class="fas" :class="showPass ? 'fa-eye-slash' : 'fa-eye'"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-check lc-remember">
+            <input id="lc-remember" v-model="remember" class="form-check-input" type="checkbox" />
+            <label class="form-check-label" for="lc-remember">Recordar mi usuario</label>
+          </div>
+
+          <div v-if="error" class="alert alert-danger lc-error" role="alert">
+            <i class="fas fa-circle-exclamation me-2"></i>{{ error }}
+          </div>
+
+          <button type="submit" class="lc-btn" :disabled="loading">
+            <template v-if="!loading">Ingresar <i class="fas fa-arrow-right ms-2"></i></template>
+            <template v-else><i class="fas fa-spinner fa-spin me-2"></i>Verificando…</template>
+          </button>
+        </form>
+
+        <p class="lc-footer">Solo para personal autorizado</p>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -164,224 +126,106 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-.login-bg {
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at top left, rgba(66, 130, 194, 0.22), transparent 34%),
-    radial-gradient(circle at bottom right, rgba(239, 176, 54, 0.16), transparent 28%),
-    linear-gradient(160deg, #f6f8fc 0%, var(--body-bg) 48%, #eef3f8 100%);
-}
-
-.login-shell {
+.login-page {
+  min-height: 100vh;
   width: 100%;
-  height: 100%;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  overflow: hidden;
+  display: flex;
 }
 
-.login-showcase {
-  position: relative;
+/* ── Panel izquierdo ── */
+.login-left {
+  flex: 1 1 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   padding: 3rem 3.5rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2rem;
-  overflow: hidden;
+  background: linear-gradient(160deg, var(--accent) 0%, var(--accent-strong) 100%);
   color: #fff;
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.22), transparent 24%),
-    linear-gradient(145deg, rgba(20, 33, 61, 0.98), rgba(46, 106, 168, 0.92));
-  isolation: isolate;
+  position: relative;
+  overflow: hidden;
 }
 
-.login-showcase::before {
-  content: '';
-  position: absolute;
-  inset: auto -8% -18% auto;
-  width: 18rem;
-  height: 18rem;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 72%);
-  filter: blur(2px);
-  z-index: -1;
+.login-left-brand {
+  display: flex; align-items: center; gap: 0.75rem;
+  margin-bottom: 3rem;
+  font-family: var(--font-display); font-weight: 700;
+  letter-spacing: 0.05rem; font-size: 1.05rem;
 }
-
-.login-showcase::after {
-  content: '';
-  position: absolute;
-  inset: 10% auto auto 8%;
-  width: 10rem;
-  height: 10rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 1.75rem;
-  transform: rotate(14deg);
-  z-index: -1;
-}
-
-.login-showcase-badge {
-  width: fit-content;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.6rem 0.9rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: rgba(255, 255, 255, 0.88);
-  font-size: 0.8rem;
-  letter-spacing: 0.02rem;
-}
-
-.login-showcase-copy {
-  max-width: 100%;
-}
-
-.login-showcase-title {
-  font-family: var(--font-display);
-  font-size: clamp(1.6rem, 2.4vw, 2.6rem);
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-  margin: 0.4rem 0 1rem;
-}
-
-.login-showcase-text {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.8);
+.login-left-icon {
+  width: 2.5rem; height: 2.5rem;
+  display: grid; place-items: center;
+  border-radius: 0.6rem;
+  background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.26);
   font-size: 1rem;
-  line-height: 1.65;
 }
 
-.login-showcase-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.85rem;
-}
-
-.login-showcase-stats article {
-  padding: 1rem;
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  backdrop-filter: blur(10px);
-}
-
-.login-showcase-stats strong {
-  display: block;
+.login-left-title {
   font-family: var(--font-display);
-  font-size: 1.3rem;
-  margin-bottom: 0.25rem;
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1.3;
+  max-width: 26rem;
+  margin: 0 0 1rem;
 }
 
-.login-showcase-stats span {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.76);
+.login-left-desc {
+  font-size: 0.95rem;
+  color: rgba(255,255,255,0.82);
+  max-width: 24rem;
+  line-height: 1.6;
+  margin: 0 0 2.5rem;
 }
 
-.login-showcase-card {
-  width: min(100%, 28rem);
-  padding: 1.1rem 1.2rem;
-  border-radius: 1.15rem;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+.login-left-features { display: flex; flex-direction: column; gap: 1rem; }
+.login-left-feature {
+  display: flex; align-items: center; gap: 0.75rem;
+  font-size: 0.88rem; font-weight: 500; color: rgba(255,255,255,0.92);
+}
+.login-left-feature i {
+  width: 2.1rem; height: 2.1rem; min-width: 2.1rem;
+  display: grid; place-items: center;
+  background: rgba(255,255,255,0.14);
+  border-radius: 0.5rem; font-size: 0.85rem;
 }
 
-.login-showcase-card-row {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  font-size: 0.92rem;
-  color: rgba(255, 255, 255, 0.86);
-}
-
-.login-showcase-card-row + .login-showcase-card-row {
-  margin-top: 0.8rem;
-}
-
-.login-showcase-dot {
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 50%;
-  background: #f7c948;
-  box-shadow: 0 0 0 0.35rem rgba(247, 201, 72, 0.18);
-  flex-shrink: 0;
-}
-
-.login-card {
+/* ── Panel derecho ── */
+.login-right {
+  flex: 1 1 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  background: var(--body-bg);
   padding: 2rem;
-  background: #fff;
 }
 
-.login-card-inner {
+.lc-card {
   width: 100%;
-  max-width: 26rem;
+  max-width: 24rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 2.5rem 2.25rem 2rem;
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
-}
-
-/* Logo */
-.lc-logo {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-}
-
-.lc-logo-icon {
-  width: 3rem;
-  height: 3rem;
-  min-width: 3rem;
-  border-radius: 0.75rem;
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-size: 1.2rem;
-  box-shadow: 0 6px 18px rgba(66, 130, 194, 0.3);
-}
-
-.lc-logo-name {
-  display: block;
-  font-size: 0.58rem;
-  font-weight: 700;
-  letter-spacing: 0.2rem;
-  color: var(--ink-400);
-  text-transform: uppercase;
-}
-
-.lc-logo-sub {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--ink-900);
-  line-height: 1.2;
+  gap: 1.5rem;
+  box-shadow: var(--shadow-lg);
 }
 
 /* Header */
-.lc-header {
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 1.5rem;
-}
+.lc-header { text-align: center; }
 
 .lc-title {
   font-family: var(--font-display);
-  font-size: 2rem;
+  font-size: 1.4rem;
   font-weight: 700;
   color: var(--ink-900);
-  margin: 0 0 0.35rem;
-  letter-spacing: -0.02em;
+  margin: 0 0 0.4rem;
+  letter-spacing: -0.01em;
 }
 
 .lc-desc {
-  font-size: 0.92rem;
+  font-size: 0.85rem;
   color: var(--ink-500);
   margin: 0;
   line-height: 1.5;
@@ -391,213 +235,73 @@ async function handleLogin() {
 .lc-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.9rem;
 }
-
-.lc-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.lc-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--ink-700);
-  letter-spacing: 0.01rem;
-}
-
-.lc-input-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.lc-icon {
-  position: absolute;
-  left: 1rem;
-  color: var(--ink-400);
-  font-size: 0.85rem;
-  pointer-events: none;
-}
-
-.lc-input {
-  width: 100%;
-  height: 3rem;
-  padding: 0 1rem 0 2.6rem;
-  border: 1.5px solid var(--line);
-  border-radius: 0.75rem;
-  background: #f8fafc;
-  color: var(--ink-900);
-  font-size: 0.94rem;
-  outline: none;
-  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
-  font-family: var(--font-body);
-}
-
-.lc-input::placeholder { color: var(--ink-300); }
-
-.lc-input:focus {
-  background: #fff;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3.5px rgba(66, 130, 194, 0.15);
-}
-
-.lc-eye {
-  position: absolute;
-  right: 0.85rem;
-  background: none;
-  border: none;
-  color: var(--ink-400);
-  cursor: pointer;
-  font-size: 0.88rem;
-  padding: 0.3rem;
-  line-height: 1;
-  transition: color 0.15s;
-}
-.lc-eye:hover { color: var(--ink-700); }
 
 .lc-remember {
+  margin: -0.3rem 0 0;
+  padding-left: 1.6rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.82rem;
+  gap: 0.4rem;
+}
+.lc-remember .form-check-input {
+  margin-top: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.lc-remember .form-check-label {
+  font-size: 0.85rem;
   color: var(--ink-700);
   cursor: pointer;
-  user-select: none;
 }
-.lc-remember input { cursor: pointer; }
 
 .lc-error {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
   font-size: 0.86rem;
-  color: var(--danger);
-  background: rgba(196, 69, 54, 0.07);
-  border: 1px solid rgba(196, 69, 54, 0.18);
-  border-radius: 0.65rem;
-  padding: 0.6rem 0.9rem;
-}
-
-.lc-btn {
-  width: 100%;
-  height: 3.1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #fff;
-  border: none;
-  border-radius: 0.75rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 0.25rem;
-  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
-  font-family: var(--font-body);
-  letter-spacing: 0.01rem;
-  box-shadow: 0 8px 20px rgba(66, 130, 194, 0.28);
-}
-
-.lc-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 28px rgba(66, 130, 194, 0.34);
-}
-.lc-btn:active:not(:disabled) { transform: translateY(0); }
-.lc-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.lc-footer {
-  font-size: 0.78rem;
-  color: var(--ink-400);
-  text-align: center;
+  padding: 0.65rem 0.9rem;
   margin: 0;
 }
 
+.lc-btn {
+  margin-top: 0.4rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0.65rem;
+  padding: 0.85rem 1rem;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01rem;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(42, 120, 214, 0.32);
+  transition: background 0.14s, opacity 0.14s;
+}
+.lc-btn:hover:not(:disabled) { background: var(--accent-strong); }
+.lc-btn:disabled { opacity: 0.75; cursor: default; }
+
+.lc-footer {
+  font-size: 0.75rem;
+  color: var(--ink-400);
+  text-align: center;
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
 @media (max-width: 991.98px) {
-  .login-bg {
-    height: auto;
-    min-height: 100vh;
-    overflow-y: auto;
-  }
-
-  .login-shell {
-    grid-template-columns: 1fr;
-    height: auto;
-    min-height: 100vh;
-  }
-
-  .login-showcase {
-    padding: 2.5rem 2rem;
-    gap: 1.75rem;
-    min-height: 50vh;
-  }
-
-  .login-showcase-stats {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .login-card {
-    padding: 2.5rem 2rem;
-  }
+  .login-left { display: none; }
+  .login-right { flex: 1 1 100%; }
 }
 
 @media (max-width: 575.98px) {
-  .login-showcase {
-    padding: 2rem 1.5rem;
-    min-height: auto;
-  }
-
-  .login-showcase-title {
-    font-size: clamp(1.55rem, 7vw, 2rem);
-  }
-
-  .login-showcase-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .login-card {
-    padding: 2rem 1.5rem;
-  }
-
-  .login-heading {
-    font-size: 1.55rem;
-  }
+  .lc-card { padding: 2rem 1.5rem 1.75rem; }
 }
 
-html.dark .login-bg {
-  background:
-    radial-gradient(circle at top left, rgba(66, 130, 194, 0.2), transparent 34%),
-    radial-gradient(circle at bottom right, rgba(247, 201, 72, 0.12), transparent 28%),
-    linear-gradient(160deg, #0b1220 0%, #0f172a 50%, #111c31 100%);
-}
-
-html.dark .login-shell {
-  background: rgba(15, 23, 42, 0.72);
-}
-
-html.dark .login-card {
-  background: #0d1424;
-}
-
-html.dark .lc-title,
-html.dark .lc-logo-sub {
-  color: #f1f5f9;
-}
-
-html.dark .lc-header {
-  border-bottom-color: rgba(255, 255, 255, 0.08);
-}
-
-html.dark .lc-input {
-  background: #1e293b;
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #f1f5f9;
-}
-
-html.dark .lc-input:focus {
-  background: #1e293b;
-  border-color: var(--accent);
-}
+html.dark .lc-card { background: #182236; }
+html.dark .lc-title { color: #f1f5f9; }
+html.dark .login-right { background: var(--body-bg); }
 </style>

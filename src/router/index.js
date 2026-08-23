@@ -1,3 +1,4 @@
+import DashboardView    from '../views/DashboardView.vue'
 import ScannerView      from '../views/ScannerView.vue'
 import OrdenesView      from '../views/OrdenesView.vue'
 import HistorialView    from '../views/HistorialView.vue'
@@ -9,7 +10,8 @@ import LoginView        from '../views/LoginView.vue'
 
 export const routes = [
   { path: '/login',         name: 'login',        component: LoginView,        meta: { public: true } },
-  { path: '/',              name: 'scanner',       component: ScannerView,      meta: { permission: 'scanner' } },
+  { path: '/',              name: 'dashboard',     component: DashboardView,    meta: {} },
+  { path: '/scanner',       name: 'scanner',       component: ScannerView,      meta: { permission: 'scanner' } },
   { path: '/ordenes',       name: 'ordenes',       component: OrdenesView,      meta: { permission: 'ordenes' } },
   { path: '/historial',     name: 'historial',     component: HistorialView,    meta: { permission: 'historial' } },
   { path: '/estadisticas',  name: 'estadisticas',  component: EstadisticasView, meta: { permission: 'estadisticas' } },
@@ -18,13 +20,9 @@ export const routes = [
   { path: '/usuarios',      name: 'usuarios',      component: UsuariosView,     meta: { permission: 'usuarios' } },
 ]
 
-const MODULE_PRIORITY = ['ordenes', 'scanner', 'historial', 'estadisticas', 'sedes', 'usuarios']
-
 function firstAllowedRoute(user) {
-  if (user?.role === 'admin') return { name: 'ordenes' }
-  const perms = user?.permissions || []
-  const key = MODULE_PRIORITY.find(p => perms.includes(p))
-  return key ? { name: key } : null
+  // El Dashboard es la página de inicio para cualquier usuario con sesión (sin permiso propio).
+  return user ? { name: 'dashboard' } : null
 }
 
 export function setupGuard(router) {

@@ -1,12 +1,12 @@
 <template>
   <section class="scanner-page">
-    <div class="container-lg">
+    <div class="scanner-container">
       <div class="scanner-layout" :class="{ 'result-only': lastOrder }">
 
         <!-- ══ PANEL IZQUIERDO ══ -->
         <div v-if="!lastOrder" class="left-panel">
 
-          <!-- Cabecera azul -->
+          <!-- Cabecera -->
           <div class="left-header">
             <div class="left-header-icon">
               <i class="fas fa-qrcode"></i>
@@ -22,7 +22,10 @@
           <!-- Cuerpo del formulario -->
           <div class="left-body">
 
-            <div class="scan-alert"><i class="fas fa-circle-info"></i><span>{{ lastScanMessage }}</span></div>
+            <div class="scan-alert">
+              <i class="fas fa-circle-info"></i>
+              <span>{{ lastScanMessage }}</span>
+            </div>
 
             <!-- Zona de foto -->
             <label class="photo-drop" :class="{
@@ -32,7 +35,7 @@
               'has-photo': orderPhoto,
             }">
               <input type="file" accept="image/*"
-                style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"
+                class="photo-drop-input"
                 @change="onPhoto" :disabled="ocrState==='scanning'" />
 
               <div class="photo-drop-content">
@@ -63,54 +66,75 @@
             <div class="fields-block">
 
               <div class="field">
-                <label class="flabel">
-                  Código de orden
-                  <span v-if="ocrState==='done'" class="fauto">auto</span>
-                </label>
-                <div class="finput-wrap" :class="{ filled: orderCode }">
-                  <i class="fas fa-barcode ficon"></i>
-                  <input v-model="orderCode" type="text" class="finput" placeholder="OP-240501 ó 7465" />
-                  <button v-if="orderCode" class="fclear" @click.prevent="orderCode=''">
-                    <i class="fas fa-times"></i>
-                  </button>
+                <label class="flabel">Código de orden</label>
+                <div class="mf-wrap">
+                  <i class="fas fa-barcode mf-icon"></i>
+                  <input
+                    v-model="orderCode"
+                    type="text"
+                    class="mf-inp"
+                    placeholder="OP-240501 ó 7465"
+                  />
+                  <span v-if="ocrState==='done'" class="fauto-chip">auto</span>
+                  <button
+                    v-if="orderCode"
+                    type="button"
+                    class="mf-eye"
+                    title="Limpiar"
+                    @click="orderCode = ''"
+                  ><i class="fas fa-times"></i></button>
                 </div>
               </div>
 
               <div class="field">
-                <label class="flabel">Nombre del producto <span class="freq">*</span></label>
-                <div class="finput-wrap" :class="{ filled: orderName }">
-                  <i class="fas fa-tag ficon"></i>
-                  <input v-model="orderName" type="text" class="finput" placeholder="Canaleta galvanizada 4×2" />
+                <label class="flabel">Nombre del producto <span class="freq">&nbsp;*</span></label>
+                <div class="mf-wrap">
+                  <i class="fas fa-tag mf-icon"></i>
+                  <input
+                    v-model="orderName"
+                    type="text"
+                    class="mf-inp"
+                    placeholder="Canaleta galvanizada 4×2"
+                  />
                 </div>
               </div>
 
               <div class="field">
-                <label class="flabel">Sede de producción</label>
                 <!-- Operario: sede fija -->
-                <div v-if="isOperario" class="finput-wrap filled">
-                  <i class="fas fa-map-marker-alt ficon"></i>
-                  <span class="finput" style="display:flex;align-items:center;color:var(--ink-900)">{{ sedeNombre }}</span>
-                  <span class="sede-lock"><i class="fas fa-lock"></i></span>
-                </div>
+                <template v-if="isOperario">
+                  <label class="flabel">Sede de producción</label>
+                  <div class="mf-wrap">
+                    <i class="fas fa-map-marker-alt mf-icon"></i>
+                    <input :value="sedeNombre" type="text" class="mf-inp" readonly />
+                    <i class="fas fa-lock mf-icon"></i>
+                  </div>
+                </template>
                 <!-- Admin: selector libre -->
-                <div v-else class="finput-wrap" :class="{ filled: true }">
-                  <i class="fas fa-building ficon"></i>
-                  <select v-model="orderSede" class="finput fselect">
-                    <option v-for="s in ordersStore.sedes" :key="s.code" :value="s.code">{{ s.name }}</option>
-                  </select>
-                </div>
+                <template v-else>
+                  <label class="flabel">Sede de producción</label>
+                  <BaseSelect
+                    v-model="orderSede"
+                    :options="ordersStore.sedes.map(s => ({ value: s.code, label: s.name }))"
+                    icon="fa-building"
+                  />
+                </template>
               </div>
 
             </div>
 
             <!-- CTA -->
-            <button class="btn-cta" :class="{ ready: canSubmit }" :disabled="!canSubmit" @click="submit">
-              <span class="btn-cta-inner">
-                <i class="fas fa-paper-plane"></i>
-                <span>Registrar en órdenes del día</span>
-              </span>
-              <span v-if="!orderName.trim() && orderCode.trim()" class="btn-cta-hint">falta el nombre del producto</span>
+            <button
+              type="button"
+              class="btn-save btn-cta w-100"
+              :disabled="!canSubmit || submitting"
+              @click="submit"
+            >
+              <i class="fas me-2" :class="submitting ? 'fa-spinner fa-spin' : 'fa-paper-plane'"></i>
+              {{ submitting ? 'Registrando…' : 'Registrar en órdenes del día' }}
             </button>
+            <p v-if="!orderName.trim() && orderCode.trim()" class="btn-cta-hint">
+              falta el nombre del producto
+            </p>
 
           </div>
         </div>
@@ -173,15 +197,23 @@
 
             <!-- Acciones -->
             <div class="result-actions">
-              <button v-if="!isOperario" class="act-btn act-secondary" @click="clearScan">
-                <i class="fas fa-plus me-2"></i>Registrar nueva orden
-              </button>
-              <RouterLink v-if="!isOperario" :to="`/orden/${lastOrder.code}`" class="act-btn act-primary">
-                <i class="fas fa-file-alt me-2"></i>Ir a la orden
-              </RouterLink>
-              <button v-if="isOperario" class="act-btn act-primary" @click="clearScan">
-                <i class="fas fa-qrcode me-2"></i>Escanear otra orden
-              </button>
+              <button
+                v-if="!isOperario"
+                type="button"
+                class="btn-cancel"
+                @click="clearScan"
+              ><i class="fas fa-plus me-2"></i>Registrar nueva orden</button>
+              <RouterLink
+                v-if="!isOperario"
+                :to="`/orden/${lastOrder.code}`"
+                class="btn-save"
+              ><i class="fas fa-file-alt me-2"></i>Ir a la orden</RouterLink>
+              <button
+                v-if="isOperario"
+                type="button"
+                class="btn-save"
+                @click="clearScan"
+              ><i class="fas fa-qrcode me-2"></i>Escanear otra orden</button>
             </div>
 
           </div>
@@ -193,11 +225,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { RouterLink } from 'vue-router'
 import { useOrdersStore } from '../stores/orders'
 import { useAuthStore }   from '../stores/auth'
+import BaseSelect from '../components/BaseSelect.vue'
 
 const ordersStore = useOrdersStore()
 const auth        = useAuthStore()
@@ -222,6 +255,15 @@ const orderSede  = ref(sedeFija.value)
 const orderPhoto = ref('')
 const orderPhotoFile = ref(null)
 const ocrState   = ref('idle')
+const submitting = ref(false)
+
+// La sede fija del operario o el fallback 'BOG' pueden no existir entre las sedes reales
+// (los códigos ahora se autogeneran); si no hay match, cae a la primera sede disponible.
+watch(sedes, (list) => {
+  if (!isOperario.value && list.length && !list.some(s => s.code === orderSede.value)) {
+    orderSede.value = list[0].code
+  }
+}, { immediate: true })
 
 let tess = null
 
@@ -235,19 +277,24 @@ const canSubmit = computed(() => orderCode.value.trim() && orderName.value.trim(
 
 const submit = async () => {
   if (!canSubmit.value) return
-  const result = await ordersStore.registerOrder(
-    orderCode.value,
-    orderName.value,
-    orderSede.value,
-    auth.user?.name,
-    orderPhotoFile.value
-  )
+  submitting.value = true
+  try {
+    const result = await ordersStore.registerOrder(
+      orderCode.value,
+      orderName.value,
+      orderSede.value,
+      auth.user?.name,
+      orderPhotoFile.value
+    )
 
-  if (!result?.ok) return
+    if (!result?.ok) return
 
-  orderCode.value = ''; orderName.value = ''
-  if (!isOperario.value) orderSede.value = 'BOG'
-  orderPhoto.value = ''; orderPhotoFile.value = null; ocrState.value = 'idle'
+    orderCode.value = ''; orderName.value = ''
+    if (!isOperario.value) orderSede.value = sedes.value[0]?.code || ''
+    orderPhoto.value = ''; orderPhotoFile.value = null; ocrState.value = 'idle'
+  } finally {
+    submitting.value = false
+  }
 }
 
 /* OCR */
@@ -282,6 +329,13 @@ const onPhoto = async (e) => {
 <style scoped>
 .scanner-page { padding: 1.25rem 0; }
 
+.scanner-container {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
 .scanner-layout {
   display: grid;
   grid-template-columns: 380px 1fr;
@@ -313,9 +367,10 @@ const onPhoto = async (e) => {
 
 /* ══ PANEL IZQUIERDO ══ */
 .left-panel {
-  border-radius: 0.5rem;
   overflow: hidden;
+  background: var(--paper);
   border: 1px solid var(--line);
+  border-radius: 0.75rem;
   box-shadow: var(--shadow-lg);
 }
 
@@ -324,7 +379,8 @@ const onPhoto = async (e) => {
   align-items: center;
   gap: 0.875rem;
   padding: 1rem 1.25rem;
-  background: var(--accent);
+  background: linear-gradient(120deg, var(--accent) 0%, var(--accent-strong) 100%);
+  color: #fff;
 }
 
 .left-header-icon {
@@ -336,15 +392,13 @@ const onPhoto = async (e) => {
   border-radius: 0.5rem;
   display: grid;
   place-items: center;
-  color: #fff;
   font-size: 0.95rem;
 }
 
-.left-header-title { font-family:var(--font-display); font-size:0.95rem; font-weight:700; color:#fff; margin:0 0 0.1rem; }
-.left-header-sub   { font-size:0.68rem; color:rgba(255,255,255,0.65); margin:0; }
+.left-header-title { font-family:var(--font-display); font-size:0.95rem; font-weight:700; margin:0 0 0.1rem; }
+.left-header-sub   { font-size:0.68rem; opacity: 0.75; margin:0; }
 
 .left-body {
-  background: var(--paper);
   padding: 1.125rem;
   display: flex;
   flex-direction: column;
@@ -356,13 +410,12 @@ const onPhoto = async (e) => {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.75rem;
-  color: var(--ink-700);
-  background: var(--surface);
-  border: 1px solid var(--line);
+  color: var(--accent-strong);
+  background: rgba(42,120,214,0.07);
+  border: 1px solid rgba(42,120,214,0.18);
   border-radius: 0.5rem;
-  padding: 0.5rem 0.7rem;
+  padding: 0.6rem 0.875rem;
 }
-.scan-alert i { color: var(--accent); font-size: 0.78rem; flex-shrink: 0; }
 
 /* Zona de foto */
 .photo-drop {
@@ -375,7 +428,15 @@ const onPhoto = async (e) => {
   background: var(--surface);
   transition: border-color 0.15s, background 0.15s;
 }
-.photo-drop:hover                               { border-color: var(--accent); background: rgba(66,130,194,0.04); }
+.photo-drop-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+.photo-drop:hover                               { border-color: var(--accent); background: rgba(42,120,214,0.04); }
 .photo-drop.done                                { border-style: solid; border-color: var(--success); background: rgba(46,139,87,0.04); }
 .photo-drop.manual                              { border-style: solid; border-color: var(--accent); }
 .photo-drop.has-photo:not(.done):not(.manual)   { border-style: solid; border-color: var(--line); background: var(--paper); }
@@ -400,14 +461,14 @@ const onPhoto = async (e) => {
   color: var(--ink-500);
 }
 .photo-drop.done .photo-drop-icon   { background: rgba(46,139,87,0.1); border-color: transparent; }
-.photo-drop.manual .photo-drop-icon { background: rgba(66,130,194,0.1); border-color: transparent; color: var(--accent); }
+.photo-drop.manual .photo-drop-icon { background: rgba(42,120,214,0.1); border-color: transparent; color: var(--accent); }
 
 .photo-drop-main { display:block; font-size:0.82rem; font-weight:600; color:var(--ink-900); }
 .photo-drop-sub  { display:block; font-size:0.68rem; color:var(--ink-500); margin-top:0.1rem; }
 
 /* Campos */
-.fields-block { display: flex; flex-direction: column; gap: 0.6rem; }
-.field        { display: flex; flex-direction: column; gap: 0.25rem; }
+.fields-block { display: flex; flex-direction: column; gap: 0.9rem; }
+.field        { display: flex; flex-direction: column; gap: 0.3rem; }
 
 .flabel {
   font-size: 0.62rem;
@@ -419,71 +480,33 @@ const onPhoto = async (e) => {
   align-items: center;
   gap: 0.4rem;
 }
-.fauto { font-size:0.6rem; font-weight:600; background:rgba(46,139,87,0.1); color:var(--success); padding:0.1rem 0.4rem; border-radius:3px; text-transform:none; letter-spacing:0; }
+.fauto-chip {
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  background: rgba(46,139,87,0.12);
+  color: var(--success);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  margin-right: 0.5rem;
+}
 .freq  { color: var(--danger); }
 
-.finput-wrap {
-  display: flex;
-  align-items: center;
-  border: 1.5px solid var(--line);
-  border-radius: 0.5rem;
-  background: var(--paper);
-  overflow: hidden;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.finput-wrap:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(66,130,194,0.12);
-}
-
-.ficon  { padding: 0 0.75rem; color: var(--ink-500); font-size: 0.82rem; flex-shrink: 0; }
-.finput-wrap.filled .ficon,
-.finput-wrap:focus-within .ficon {
-  color: var(--accent);
-}
-.finput {
-  flex: 1; border: none; outline: none;
-  padding: 0.55rem 0.5rem 0.55rem 0;
-  font-size: 0.85rem; color: var(--ink-900);
-  background: transparent; font-family: var(--font-body);
-}
-.finput::placeholder { color: var(--ink-500); opacity: 0.55; }
-.fselect { cursor: pointer; }
-.fclear  { background: none; border: none; padding: 0 0.65rem; color: var(--ink-500); cursor: pointer; font-size: 0.72rem; flex-shrink: 0; }
-.fclear:hover { color: var(--danger); }
-.sede-lock { padding: 0 0.7rem; color: var(--ink-500); font-size: 0.68rem; flex-shrink: 0; }
-
 /* CTA */
-.btn-cta {
-  border: none; border-radius: 0.5rem;
-  padding: 0; overflow: hidden; cursor: pointer; width: 100%;
-  background: var(--surface-2);
-  transition: transform 0.12s, box-shadow 0.15s;
-}
-.btn-cta.ready {
-  background: var(--accent);
-  box-shadow: 0 4px 14px rgba(66,130,194,0.35);
-}
-.btn-cta.ready:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(66,130,194,0.45); }
-.btn-cta:disabled    { cursor: not-allowed; opacity: 0.65; }
-
-.btn-cta-inner {
-  display: flex; align-items: center; justify-content: center;
-  gap: 0.55rem; padding: 0.7rem;
-  font-size: 0.85rem; font-weight: 700;
-  color: var(--ink-500);
-}
-.btn-cta.ready .btn-cta-inner { color: #fff; }
+.btn-cta { margin-top: 0.25rem; letter-spacing: 0.01rem; font-weight: 700; justify-content: center; }
 
 .btn-cta-hint {
-  display: block; text-align: center; font-size: 0.65rem;
-  color: var(--danger); padding: 0.2rem;
-  background: rgba(196,69,54,0.06);
+  text-align: center; font-size: 0.68rem;
+  color: var(--danger); margin: 0.35rem 0 0;
 }
 
 /* Spinners */
 .spin-icon { display:inline-block; width:1rem; height:1rem; border:2px solid rgba(0,0,0,0.1); border-top-color:var(--accent); border-radius:50%; animation:sp 0.7s linear infinite; }
-.spin-sm   { display:inline-block; width:0.8rem; height:0.8rem; border:2px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:sp 0.7s linear infinite; flex-shrink:0; }
 @keyframes sp { to { transform:rotate(360deg); } }
 
 /* ══ PANEL DERECHO ══ */
@@ -493,22 +516,30 @@ const onPhoto = async (e) => {
 .right-empty {
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; min-height: 380px; text-align: center;
-  padding: 2rem; background: var(--paper);
-  border: 1px solid var(--line); border-radius: 0.5rem;
+  padding: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
 }
 .empty-icon-wrap {
   width: 4.5rem; height: 4.5rem; border-radius: 50%;
-  background: rgba(66,130,194,0.08);
-  border: 1px solid rgba(66,130,194,0.2);
+  background: rgba(42,120,214,0.08);
+  border: 1px solid rgba(42,120,214,0.2);
   display: grid; place-items: center;
-  font-size: 1.6rem; color: var(--accent);
+  color: var(--accent);
+  font-size: 1.65rem;
   margin: 0 auto 1.25rem;
 }
 .empty-title { font-family:var(--font-display); font-size:1rem; font-weight:700; margin:0 0 0.5rem; color:var(--ink-900); }
-.empty-body  { font-size:0.82rem; color:var(--ink-500); max-width:280px; line-height:1.75; margin:0; }
+.empty-body  { font-size:0.82rem; color:var(--ink-500); max-width:280px; line-height:1.75; margin:0 auto; }
 
 /* Foto viewer */
-.photo-viewer { border-radius:0.375rem; overflow:hidden; border:1px solid var(--line); box-shadow:var(--shadow-sm); }
+.photo-viewer {
+  overflow:hidden;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-sm);
+}
 .photo-viewer-bar {
   display:flex; justify-content:space-between; align-items:center;
   padding:0.75rem 1rem; background:var(--surface); border-bottom:1px solid var(--line);
@@ -516,23 +547,29 @@ const onPhoto = async (e) => {
   text-transform:uppercase; letter-spacing:0.07rem; flex-wrap:wrap; gap:0.5rem;
 }
 .photo-viewer-badge {
-  font-size:0.68rem; font-weight:600;
-  background:rgba(66,130,194,0.1); color:var(--accent);
-  border:1px solid rgba(66,130,194,0.2);
-  padding:0.2rem 0.6rem; border-radius:3px;
-  text-transform:none; letter-spacing:0;
+  display: inline-flex; align-items: center;
+  background: rgba(42,120,214,0.1); color: var(--accent-strong);
+  padding: 0.3rem 0.7rem; border-radius: 999px;
+  text-transform:none; letter-spacing:0; font-weight:600; font-size: 0.72rem;
 }
-.photo-viewer-img { width:100%; max-height:520px; object-fit:contain; display:block; background:var(--surface); }
+.photo-viewer-img { width:100%; max-height:520px; object-fit: contain; display: block; }
 
 /* Orden registrada — estilo recibo */
-.order-result { border-radius:0.375rem; overflow:hidden; border:1px solid var(--line); box-shadow:var(--shadow-sm); background:var(--paper); }
+.order-result {
+  overflow:hidden;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-sm);
+}
 
 .result-header {
   display: flex;
   align-items: center;
   gap: 1rem;
   padding: 1.4rem 1.75rem;
-  background: var(--accent);
+  background: linear-gradient(120deg, var(--accent) 0%, var(--accent-strong) 100%);
+  color: #fff;
 }
 .result-header-icon {
   width: 2.75rem;
@@ -543,11 +580,10 @@ const onPhoto = async (e) => {
   border-radius: 0.5rem;
   display: grid;
   place-items: center;
-  color: #fff;
   font-size: 1.15rem;
 }
-.result-header-title { font-family:var(--font-display); font-size:1.15rem; font-weight:700; color:#fff; margin:0 0 0.15rem; }
-.result-header-sub   { font-size:0.8rem; color:rgba(255,255,255,0.65); margin:0; }
+.result-header-title { font-family:var(--font-display); font-size:1.15rem; font-weight:700; margin:0 0 0.15rem; }
+.result-header-sub   { font-size:0.8rem; opacity: 0.75; margin:0; }
 
 .receipt {
   padding: 2rem 2rem 0.5rem;
@@ -580,14 +616,5 @@ const onPhoto = async (e) => {
   display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1.4rem 2rem;
   flex-wrap: wrap;
 }
-.act-btn {
-  padding: 0.65rem 1.75rem; border-radius: 0.375rem;
-  font-size: 0.9rem; font-weight: 600;
-  display: flex; align-items: center; justify-content: center;
-  transition: opacity 0.14s, background 0.14s;
-}
-.act-primary   { background: var(--accent); color: #fff; border: none; }
-.act-primary:hover  { opacity: 0.88; }
-.act-secondary { background: none; color: var(--ink-700); border: 1px solid var(--line); }
-.act-secondary:hover { background: var(--surface); }
+.result-actions a.btn-save { text-decoration: none; }
 </style>

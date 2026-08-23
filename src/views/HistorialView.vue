@@ -1,63 +1,58 @@
 <template>
-  <section class="py-3 py-lg-4">
-    <div class="container-lg">
+  <section class="hist-page">
+    <div class="hist-container">
 
-      <!-- Cabecera + Filtros -->
-      <div class="hist-header-wrap mb-4">
-
-        <!-- Título -->
-        <div class="hist-header">
-          <div class="hist-title-icon"><i class="fas fa-history"></i></div>
-          <div class="hist-title-info">
-            <h2 class="hist-title">Historial de órdenes</h2>
-            <p class="hist-sub">{{ hoy }}</p>
-          </div>
-        </div>
-
-        <!-- Filtros -->
-        <div class="hist-filters">
-          <div class="hist-search-wrap">
-            <i class="fas fa-search hist-search-icon"></i>
-            <input
-              v-model="filters.query" type="text"
-              class="hist-search-input"
-              placeholder="Buscar por código, producto u operador…" />
-          </div>
-          <div v-if="!isOperario" class="hist-select-wrap">
-            <i class="fas fa-building hist-select-icon"></i>
-            <select class="hist-select" v-model="filters.sede">
-              <option value="all">Todas las sedes</option>
-              <option v-for="s in ordersStore.sedes" :key="s.code" :value="s.code">{{ s.name }}</option>
-            </select>
-          </div>
-        </div>
-
-      </div>
+      <!-- Cabecera -->
+      <PageHeader
+        :breadcrumb="['Conexa', 'Historial', 'Historial de órdenes']"
+        icon="fa-history"
+        title="Historial de órdenes"
+        :subtitle="hoy"
+      />
 
       <!-- Tabla -->
-      <div class="hist-table-wrap">
-
-        <div class="hist-table-head">
-          <div class="hist-table-head-left">
-            <i class="fas fa-archive"></i>
-            <span>Órdenes anteriores</span>
+      <div class="table-card">
+        <div class="table-card-head">
+          <span class="table-card-head-title">
+            <i class="fas fa-archive"></i>Órdenes anteriores
+            <span class="table-card-count">{{ filteredHistoricalOrders.length }}</span>
+          </span>
+          <div class="table-card-search">
+            <div class="search-box">
+              <i class="fas fa-search search-box-icon"></i>
+              <input
+                type="text"
+                class="form-control"
+                placeholder="Buscar por código, producto u operador…"
+                v-model="filters.query"
+              />
+            </div>
+            <BaseSelect
+              v-if="!isOperario"
+              v-model="filters.sede"
+              :options="[{ value: 'all', label: 'Todas las sedes' }, ...ordersStore.sedes.map(s => ({ value: s.code, label: s.name }))]"
+              icon="fa-building"
+              size="sm"
+              style="min-width:180px"
+            />
           </div>
-          <span class="hist-badge">{{ filteredHistoricalOrders.length }} orden(es)</span>
         </div>
 
         <!-- Vacío -->
         <div v-if="!filteredHistoricalOrders.length" class="log-empty">
-          <div class="log-empty-icon"><i class="fas fa-clipboard-list"></i></div>
+          <div class="log-empty-icon">
+            <i class="fas fa-clipboard-list"></i>
+          </div>
           <p class="log-empty-title">Sin historial aún</p>
           <p class="log-empty-sub">Las órdenes de días anteriores aparecen aquí automáticamente.</p>
-          <RouterLink to="/" class="log-empty-btn">
+          <RouterLink to="/scanner" class="btn btn-primary">
             <i class="fas fa-qrcode me-2"></i>Ir al Scanner
           </RouterLink>
         </div>
 
         <!-- Tabla -->
         <div v-else class="table-responsive">
-          <table class="hist-table">
+          <table class="data-table">
             <thead>
               <tr>
                 <th>Código</th>
@@ -69,18 +64,28 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="o in filteredHistoricalOrders" :key="o.code">
-                <td><span class="h-code">{{ o.code }}</span></td>
-                <td class="h-product">{{ o.product }}</td>
-                <td><span class="h-chip">{{ o.sedeInfo.name }}</span></td>
-                <td class="h-muted">{{ o.operator }}</td>
-                <td class="h-date">{{ fmtDate(o.scheduledAt) }}</td>
+              <tr v-for="item in filteredHistoricalOrders" :key="item.code">
+                <td><span class="code-tag">{{ item.code }}</span></td>
+                <td><span class="h-product">{{ item.product }}</span></td>
                 <td>
-                  <div class="d-flex gap-1">
-                    <button class="h-btn h-btn-pdf" @click="generatePdf(o)" :disabled="generatingPdf === o.code" title="Descargar PDF">
-                      <i class="fas" :class="generatingPdf === o.code ? 'fa-spinner fa-spin' : 'fa-file-pdf'"></i>
+                  <span
+                    class="sede-chip"
+                    :style="{ color: sedeColor(item.sede), backgroundColor: `color-mix(in srgb, ${sedeColor(item.sede)} 16%, transparent)` }"
+                  >{{ item.sedeInfo.name }}</span>
+                </td>
+                <td class="cell-muted">{{ item.operator }}</td>
+                <td><span class="h-date">{{ fmtDate(item.scheduledAt) }}</span></td>
+                <td>
+                  <div class="row-actions">
+                    <button
+                      class="btn-icon btn-del"
+                      :disabled="generatingPdf === item.code"
+                      title="Descargar PDF"
+                      @click="generatePdf(item)"
+                    >
+                      <i class="fas" :class="generatingPdf === item.code ? 'fa-spinner fa-spin' : 'fa-file-pdf'"></i>
                     </button>
-                    <RouterLink :to="`/orden/${o.code}`" class="h-btn">
+                    <RouterLink :to="`/orden/${item.code}`" class="btn-icon" title="Ver detalle">
                       <i class="fas fa-arrow-right"></i>
                     </RouterLink>
                   </div>
@@ -89,7 +94,6 @@
             </tbody>
           </table>
         </div>
-
       </div>
     </div>
   </section>
@@ -97,18 +101,28 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
+import { RouterLink } from 'vue-router'
 import { useOrdersStore } from '../stores/orders'
 import { useAuthStore } from '../stores/auth'
 import { generateOrderPdf } from '../utils/orderPdf'
+import BaseSelect from '../components/BaseSelect.vue'
+import PageHeader from '../components/PageHeader.vue'
 
 const ordersStore = useOrdersStore()
 const authStore    = useAuthStore()
-const { historicalOrders } = storeToRefs(ordersStore)
+const { historicalOrders, sedes } = storeToRefs(ordersStore)
 const isOperario = computed(() => authStore.user?.role === 'operario')
 
 onMounted(() => ordersStore.fetchOrders())
+
+/* Color por sede: mismo criterio que EstadisticasView, para consistencia visual */
+const SERIES = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)',
+                 'var(--series-5)', 'var(--series-6)', 'var(--series-7)', 'var(--series-8)']
+const sedeColor = (code) => {
+  const idx = sedes.value.findIndex(s => s.code === code)
+  return SERIES[idx >= 0 ? idx % SERIES.length : 0]
+}
 
 const generatingPdf = ref('')
 async function generatePdf(order) {
@@ -142,116 +156,22 @@ const fmtDate = (iso) => new Date(iso).toLocaleDateString('es-CO', {
 </script>
 
 <style scoped>
-/* Cabecera + Filtros */
-.hist-header-wrap { display:flex; flex-direction:column; gap:1rem; }
+.hist-page { padding: 1rem 0 1.5rem; }
+.hist-container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
 
-.hist-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 0.375rem;
-  padding: 1.25rem 1.5rem;
-  box-shadow: var(--shadow-sm);
-}
-.hist-title-icon {
-  width: 2.75rem; height: 2.75rem; min-width: 2.75rem;
-  background: var(--accent); border-radius: 0.375rem;
-  display: grid; place-items: center;
-  color: #fff; font-size: 1rem;
-}
-.hist-title { font-family:var(--font-display); font-size:1.15rem; font-weight:700; margin:0 0 0.2rem; color:var(--ink-900); }
-.hist-sub   { font-size:0.8rem; color:var(--ink-500); margin:0; text-transform:capitalize; }
-
-/* Filtros */
-.hist-filters { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-.hist-search-wrap {
-  flex: 1; min-width: 220px;
-  display: flex; align-items: center;
-  background: var(--paper); border: 1.5px solid var(--line);
-  border-radius: 0.75rem; overflow: hidden;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.hist-search-wrap:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(66,130,194,0.1);
-}
-.hist-search-icon  { padding: 0 0.875rem; color: var(--ink-500); font-size: 0.85rem; flex-shrink:0; }
-.hist-search-input {
-  flex: 1; border: none; outline: none;
-  padding: 0.75rem 0.5rem 0.75rem 0;
-  font-size: 0.875rem; color: var(--ink-900);
-  background: transparent; font-family: var(--font-body);
-}
-.hist-search-input::placeholder { color: var(--ink-500); opacity: 0.6; }
-
-.hist-select-wrap {
-  min-width: 180px;
-  display: flex; align-items: center;
-  background: var(--paper); border: 1.5px solid var(--line);
-  border-radius: 0.75rem; overflow: hidden;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.hist-select-wrap:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(66,130,194,0.1);
-}
-.hist-select-icon { padding: 0 0.875rem; color: var(--ink-500); font-size: 0.85rem; flex-shrink:0; }
-.hist-select {
-  flex: 1; border: none; outline: none;
-  padding: 0.75rem 0.5rem 0.75rem 0;
-  font-size: 0.875rem; color: var(--ink-900);
-  background: transparent; cursor: pointer; font-family: var(--font-body);
-  color-scheme: light;
-}
-html.dark .hist-select { color-scheme: dark; }
-.hist-select option { color: var(--ink-900); background: var(--paper); }
-html.dark .hist-select option { color: var(--ink-900); background: var(--surface); }
-
-/* Tabla historial */
-.hist-table-wrap {
-  background: var(--paper); border: 1px solid var(--line);
-  border-radius: 0.375rem; overflow: hidden; box-shadow: var(--shadow-sm);
-}
-.hist-table-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0.875rem 1.25rem;
-  background: var(--surface); border-bottom: 1px solid var(--line);
-  font-size: 0.8rem; font-weight: 700; color: var(--ink-700);
-  gap: 0.5rem; flex-wrap: wrap;
-}
-.hist-table-head-left { display:flex; align-items:center; gap:0.5rem; }
-.hist-badge {
-  font-size:0.68rem; font-weight:600;
-  background:rgba(66,130,194,0.1); color:var(--accent);
-  border:1px solid rgba(66,130,194,0.2);
-  padding:0.2rem 0.6rem; border-radius:3px;
-}
+.search-box { position:relative; flex:1 1 220px; max-width:320px; }
+.search-box-icon { position:absolute; left:0.8rem; top:50%; transform:translateY(-50%); color:var(--ink-500); font-size:0.8rem; pointer-events:none; }
+.search-box .form-control { padding-left:2.15rem; }
 
 /* Empty */
 .log-empty { display:flex; flex-direction:column; align-items:center; text-align:center; padding:3.5rem 2rem; }
-.log-empty-icon { width:3.5rem; height:3.5rem; border-radius:0.375rem; background:var(--surface); border:1px solid var(--line); display:grid; place-items:center; font-size:1.4rem; color:var(--ink-500); margin-bottom:1rem; }
+.log-empty-icon { width:56px; height:56px; display:grid; place-items:center; font-size:1.4rem; color:var(--ink-500); background:var(--surface); border-radius:0.75rem; margin-bottom:1rem; }
 .log-empty-title { font-size:0.95rem; font-weight:600; color:var(--ink-900); margin:0 0 0.35rem; }
 .log-empty-sub   { font-size:0.82rem; color:var(--ink-500); max-width:300px; line-height:1.7; margin:0 0 1rem; }
-.log-empty-btn { display:inline-flex; align-items:center; padding:0.55rem 1.25rem; background:var(--accent); color:#fff; border-radius:0.375rem; font-size:0.85rem; font-weight:600; transition:opacity 0.14s; }
-.log-empty-btn:hover { opacity:0.85; }
 
 /* Tabla */
-.hist-table { width:100%; border-collapse:collapse; font-size:0.865rem; }
-.hist-table th { padding:0.8rem 1rem; text-align:left; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.1rem; color:var(--ink-500); font-weight:700; border-bottom:1px solid var(--line); background:var(--surface); white-space:nowrap; }
-.hist-table td { padding:0.85rem 1rem; border-bottom:1px solid var(--line); vertical-align:middle; color:var(--ink-900); }
-.hist-table tbody tr:last-child td { border-bottom:none; }
-.hist-table tbody tr:hover { background:rgba(66,130,194,0.04); }
-
-.h-code    { font-weight:700; font-size:0.82rem; letter-spacing:0.04rem; color:var(--ink-500); }
-.h-product { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; }
-.h-chip    { display:inline-flex; align-items:center; font-size:0.7rem; font-weight:600; padding:0.28rem 0.65rem; border-radius:0.45rem; background:var(--surface); color:var(--ink-700); border:1px solid var(--line); white-space:nowrap; }
-.h-muted   { color:var(--ink-500); font-size:0.83rem; }
+.h-product { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; display:inline-block; }
 .h-date    { font-size:0.82rem; font-weight:600; color:var(--ink-700); white-space:nowrap; }
-.h-btn     { display:inline-flex; align-items:center; justify-content:center; width:1.75rem; height:1.75rem; border-radius:3px; border:1px solid var(--line); background:var(--surface); color:var(--ink-500); font-size:0.72rem; transition:background 0.12s, color 0.12s; }
-.h-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
-.h-btn-pdf { color:var(--danger); border-color:rgba(196,69,54,0.2); background:rgba(196,69,54,0.1); }
-.h-btn-pdf:hover:not(:disabled) { background:var(--danger); color:#fff; border-color:var(--danger); }
-.h-btn-pdf:disabled { opacity:0.6; cursor:not-allowed; }
+
+.sede-chip { display:inline-flex; align-items:center; font-size:0.75rem; font-weight:700; padding:0.28rem 0.7rem; border-radius:999px; white-space:nowrap; }
 </style>

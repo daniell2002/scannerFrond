@@ -4,8 +4,8 @@ import { BASE } from '../api'
 
 pdfMake.addVirtualFileSystem(pdfFonts)
 
-const ACCENT   = '#4282c2'
-const INK_900  = '#14213d'
+const ACCENT   = '#2a78d6'
+const INK_900  = '#2a78d6'
 const INK_500  = '#67809a'
 const LINE     = '#e4e7eb'
 const STRIPE   = '#f5f7fa'

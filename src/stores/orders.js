@@ -29,7 +29,7 @@ export const useOrdersStore = defineStore('orders', () => {
   const ordersWithMeta = computed(() =>
     rawOrders.value.map(o => ({
       ...o,
-      sedeInfo:       sedeMap.value[o.sede] || { name: o.sede, city: '', manager: '', activeLines: 0 },
+      sedeInfo:       sedeMap.value[o.sede] || { name: o.sede, city: '', manager: '' },
       completionRate: o.quantity ? Math.round((o.completed / o.quantity) * 100) : 0,
     }))
   )

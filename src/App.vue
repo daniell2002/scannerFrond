@@ -15,7 +15,7 @@
         <i class="fas fa-bars"></i>
       </button>
       <div class="topbar-brand">
-        <div class="topbar-brand-icon"><i class="fas fa-barcode"></i></div>
+        <div class="topbar-brand-icon"><i class="fas fa-project-diagram"></i></div>
         <span class="topbar-brand-title">
           CONEXA
           <span class="topbar-divider"></span>
@@ -29,9 +29,24 @@
         <button class="theme-toggle" @click="toggleDark" :title="darkMode ? 'Modo claro' : 'Modo oscuro'">
           <i class="fas" :class="darkMode ? 'fa-sun' : 'fa-moon'"></i>
         </button>
-        <button class="theme-toggle" @click="doLogout" title="Cerrar sesión">
-          <i class="fas fa-sign-out-alt"></i>
-        </button>
+
+        <div class="user-menu" ref="userMenuRoot">
+          <button class="user-menu-trigger" @click="userMenuOpen = !userMenuOpen">
+            <span class="user-avatar">{{ initials }}</span>
+            <span class="user-menu-name d-none d-sm-inline">{{ auth.user?.name || 'Usuario' }}</span>
+            <i class="fas fa-chevron-down"></i>
+          </button>
+          <Transition name="user-menu-fade">
+            <div v-if="userMenuOpen" class="user-menu-dropdown">
+              <button class="user-menu-item" @click="openSettings">
+                <i class="fas fa-cog"></i>Ajustes
+              </button>
+              <button class="user-menu-item is-danger" @click="doLogout">
+                <i class="fas fa-sign-out-alt"></i>Cerrar sesión
+              </button>
+            </div>
+          </Transition>
+        </div>
       </div>
     </header>
 
@@ -39,6 +54,11 @@
 
     <aside class="sidebar">
       <div class="sidebar-scroll">
+        <RouterLink to="/" exact-active-class="" class="sidebar-dashboard" @click="closeOnMobile">
+          <span class="sidebar-dashboard-icon"><i class="fas fa-th-large"></i></span>
+          <span class="sidebar-dashboard-text">Dashboard</span>
+        </RouterLink>
+
         <nav class="sidebar-nav">
           <span class="sidebar-section-label">Módulos</span>
           <RouterLink
@@ -46,27 +66,13 @@
             :key="item.key"
             :to="item.to"
             class="sidebar-link"
-            :exact-active-class="item.exact ? 'router-link-exact-active' : ''"
-            :active-class="item.exact ? '' : 'router-link-active'"
+            active-class="router-link-active"
             @click="closeOnMobile"
           >
             <span class="sidebar-link-icon"><i class="fas" :class="item.icon"></i></span>
             <span class="sidebar-link-text">{{ item.label }}</span>
           </RouterLink>
         </nav>
-      </div>
-
-      <div class="op-user-card">
-        <div class="op-avatar">{{ initials }}</div>
-        <div class="op-user-info">
-          <span class="op-user-name">{{ auth.user?.name || 'Usuario' }}</span>
-          <span class="op-user-sede" v-if="sedeNombre">
-            <i class="fas fa-map-marker-alt"></i>{{ sedeNombre }}
-          </span>
-          <span class="op-user-sede" v-else-if="auth.user?.role === 'admin'">
-            <i class="fas fa-shield-alt"></i>Administrador
-          </span>
-        </div>
       </div>
     </aside>
 
@@ -77,6 +83,43 @@
     </div>
 
   </div>
+
+  <BaseModal v-model="settingsOpen" icon="fa-cog" title="Ajustes de la cuenta" subtitle="Actualiza tu correo o contraseña">
+    <div class="mf-field">
+      <label class="mf-label">Correo</label>
+      <div class="mf-wrap">
+        <i class="fas fa-envelope mf-icon"></i>
+        <input v-model="settingsForm.email" type="email" class="mf-inp" placeholder="correo@ejemplo.com" />
+      </div>
+    </div>
+    <div class="mf-field">
+      <label class="mf-label">Contraseña actual</label>
+      <div class="mf-wrap">
+        <i class="fas fa-lock mf-icon"></i>
+        <input v-model="settingsForm.currentPassword" type="password" class="mf-inp" />
+      </div>
+      <span class="mf-hint">Requerida solo si vas a cambiar la contraseña</span>
+    </div>
+    <div class="mf-field">
+      <label class="mf-label">Nueva contraseña</label>
+      <div class="mf-wrap">
+        <i class="fas fa-key mf-icon"></i>
+        <input v-model="settingsForm.newPassword" type="password" class="mf-inp" />
+      </div>
+    </div>
+    <div v-if="settingsError" class="mf-error">
+      <i class="fas fa-exclamation-circle"></i>{{ settingsError }}
+    </div>
+
+    <template #footer>
+      <button class="btn-cancel" @click="settingsOpen = false">Cancelar</button>
+      <button class="btn-save" :disabled="savingSettings" @click="saveSettings">
+        <i class="fas" :class="savingSettings ? 'fa-spinner fa-spin' : 'fa-check'"></i>
+        {{ savingSettings ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </template>
+  </BaseModal>
+
 </template>
 
 
@@ -85,7 +128,10 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { useOrdersStore } from './stores/orders'
+import { useNotificationsStore } from './stores/notifications'
+import { api } from './api'
 import NotificationsTray from './components/NotificationsTray.vue'
+import BaseModal from './components/BaseModal.vue'
 
 const DESKTOP_BREAKPOINT = 1200
 
@@ -93,8 +139,47 @@ const route       = useRoute()
 const router      = useRouter()
 const auth        = useAuthStore()
 const ordersStore = useOrdersStore()
+const notify      = useNotificationsStore()
 const sidebarOpen = ref(window.innerWidth >= DESKTOP_BREAKPOINT)
 const darkMode    = ref(localStorage.getItem('dark') === 'true')
+
+const userMenuOpen = ref(false)
+const userMenuRoot = ref(null)
+function onClickOutsideUserMenu(e) {
+  if (userMenuRoot.value && !userMenuRoot.value.contains(e.target)) userMenuOpen.value = false
+}
+
+const settingsOpen    = ref(false)
+const savingSettings  = ref(false)
+const settingsError   = ref('')
+const settingsForm    = ref({ email: '', currentPassword: '', newPassword: '' })
+
+function openSettings() {
+  userMenuOpen.value = false
+  settingsError.value = ''
+  settingsForm.value = { email: auth.user?.email || '', currentPassword: '', newPassword: '' }
+  settingsOpen.value = true
+}
+
+async function saveSettings() {
+  settingsError.value = ''
+  savingSettings.value = true
+  try {
+    const { user } = await api.patch('/api/auth/profile', {
+      email: settingsForm.value.email,
+      currentPassword: settingsForm.value.newPassword ? settingsForm.value.currentPassword : undefined,
+      newPassword: settingsForm.value.newPassword || undefined,
+    })
+    auth.user = user
+    localStorage.setItem('auth_user', JSON.stringify(user))
+    notify.success('Tu perfil fue actualizado.', { title: 'Ajustes guardados' })
+    settingsOpen.value = false
+  } catch (e) {
+    settingsError.value = e.message || 'No fue posible guardar los cambios.'
+  } finally {
+    savingSettings.value = false
+  }
+}
 
 let isDesktop = window.innerWidth >= DESKTOP_BREAKPOINT
 function handleResize() {
@@ -108,18 +193,15 @@ function handleResize() {
 onMounted(() => {
   ordersStore.fetchSedes({ silent: true })
   window.addEventListener('resize', handleResize)
+  document.addEventListener('mousedown', onClickOutsideUserMenu)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
+  document.removeEventListener('mousedown', onClickOutsideUserMenu)
 })
 
 const isLogin = computed(() => route.name === 'login')
-
-const sedeNombre = computed(() => {
-  if (!auth.user?.sede) return ''
-  return ordersStore.sedes.find(s => s.code === auth.user.sede)?.name || auth.user.sede
-})
 
 const initials = computed(() => {
   const name = auth.user?.name || ''
@@ -135,6 +217,7 @@ const toggleDark    = () => { darkMode.value = !darkMode.value }
 const closeOnMobile = () => { if (window.innerWidth < DESKTOP_BREAKPOINT) sidebarOpen.value = false }
 
 function doLogout() {
+  userMenuOpen.value = false
   auth.logout()
   router.push('/login')
 }
@@ -145,13 +228,14 @@ const today = computed(() =>
   })
 )
 
+// El Dashboard es la página de inicio: siempre visible, sin permiso propio.
 const ALL_MODULES = [
-  { key: 'scanner',      to: '/',              icon: 'fa-qrcode',      label: 'Scanner',       exact: true  },
-  { key: 'ordenes',      to: '/ordenes',       icon: 'fa-layer-group', label: 'Órdenes',       exact: false },
-  { key: 'historial',    to: '/historial',     icon: 'fa-history',     label: 'Historial',     exact: false },
-  { key: 'estadisticas', to: '/estadisticas',  icon: 'fa-chart-bar',   label: 'Estadísticas',  exact: false },
-  { key: 'sedes',        to: '/sedes',         icon: 'fa-building',    label: 'Sedes',         exact: false },
-  { key: 'usuarios',     to: '/usuarios',      icon: 'fa-users',       label: 'Usuarios',      exact: false },
+  { key: 'scanner',      to: '/scanner',       icon: 'fa-qrcode',      label: 'Scanner'       },
+  { key: 'ordenes',      to: '/ordenes',       icon: 'fa-layer-group', label: 'Órdenes'       },
+  { key: 'historial',    to: '/historial',     icon: 'fa-history',     label: 'Historial'     },
+  { key: 'estadisticas', to: '/estadisticas',  icon: 'fa-chart-bar',   label: 'Estadísticas'  },
+  { key: 'sedes',        to: '/sedes',         icon: 'fa-building',    label: 'Sedes'         },
+  { key: 'usuarios',     to: '/usuarios',      icon: 'fa-users',       label: 'Usuarios'      },
 ]
 
 const sidebarItems = computed(() => {
@@ -159,78 +243,3 @@ const sidebarItems = computed(() => {
   return ALL_MODULES.filter(m => (auth.user?.permissions || []).includes(m.key))
 })
 </script>
-
-<style scoped>
-/* ── User card footer del sidebar ── */
-.op-user-card {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  border-top: 1px solid var(--line);
-  flex-shrink: 0;
-  min-width: 0;
-}
-
-.op-avatar {
-  width: 2.4rem;
-  height: 2.4rem;
-  min-width: 2.4rem;
-  border-radius: 0.6rem;
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #fff;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.04rem;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  box-shadow: 0 3px 10px rgba(66,130,194,0.35);
-}
-
-.op-user-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  max-width: 160px;
-  opacity: 1;
-  transition: max-width 0.28s ease, opacity 0.2s ease;
-}
-
-.op-user-name {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--ink-900);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.op-user-sede {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.68rem;
-  font-weight: 500;
-  color: var(--ink-500);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.op-user-sede i {
-  font-size: 0.58rem;
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-@media (min-width: 1200px) {
-  .op-user-card { justify-content: center; padding: 0.875rem; transition: padding 0.28s ease; }
-  .sidebar-open .op-user-card { justify-content: flex-start; padding: 1rem 1.25rem; }
-  .op-user-info { max-width: 0; opacity: 0; }
-  .sidebar-open .op-user-info { max-width: 160px; opacity: 1; }
-}
-</style>
