@@ -202,14 +202,9 @@ async function handleLogin() {
 .lc-card {
   width: 100%;
   max-width: 24rem;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 0.9rem;
-  padding: 2.5rem 2.25rem 2rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  box-shadow: var(--shadow-lg);
 }
 
 /* Header */
@@ -297,11 +292,6 @@ async function handleLogin() {
   .login-right { flex: 1 1 100%; }
 }
 
-@media (max-width: 575.98px) {
-  .lc-card { padding: 2rem 1.5rem 1.75rem; }
-}
-
-html.dark .lc-card { background: #182236; }
 html.dark .lc-title { color: #f1f5f9; }
 html.dark .login-right { background: var(--body-bg); }
 </style>
