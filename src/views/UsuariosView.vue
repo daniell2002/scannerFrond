@@ -6,7 +6,7 @@
       :breadcrumb="['Conexa', 'Administración', 'Usuarios']"
       icon="fa-users"
       title="Usuarios del sistema"
-      subtitle="Administra los accesos y roles de cada usuario"
+      subtitle="Cuentas de acceso, roles y permisos"
     >
       <template #action>
         <button class="btn-add" @click="openCreate"><i class="fas fa-user-plus me-2"></i>Nuevo usuario</button>
@@ -17,167 +17,265 @@
     <div v-if="error" class="state-error"><i class="fas fa-exclamation-triangle me-2"></i>{{ error }}</div>
     <div v-else-if="loading" class="state-loading"><i class="fas fa-spinner fa-spin me-2"></i>Cargando usuarios…</div>
 
-    <!-- Tabla -->
-    <div v-else class="table-card">
-      <div class="table-card-head">
-        <span class="table-card-head-title"><i class="fas fa-users"></i>Usuarios <span class="table-card-count">{{ users.length }}</span></span>
+    <template v-else>
+      <!-- Resumen -->
+      <div class="us-stats">
+        <div class="us-stat"><span class="us-stat-label">Usuarios</span><span class="us-stat-val">{{ users.length }}</span></div>
+        <div class="us-stat"><span class="us-stat-label">Activos</span><span class="us-stat-val">{{ counts.active }}</span></div>
+        <div class="us-stat"><span class="us-stat-label">Administradores</span><span class="us-stat-val">{{ counts.admins }}</span></div>
+        <div class="us-stat">
+          <span class="us-stat-label">Sin correo</span>
+          <span class="us-stat-val" :class="{ 'is-warn': counts.noEmail }">{{ counts.noEmail }}</span>
+        </div>
       </div>
-      <div v-if="!users.length" class="table-empty">
-        <i class="fas fa-user-slash"></i>
-        <p>No hay usuarios. Crea el primero con el botón de arriba.</p>
-      </div>
-      <div v-else class="table-responsive">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Usuario</th>
-              <th>Rol</th>
-              <th>Sede asignada</th>
-              <th class="text-center">Módulos</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="u in users" :key="u.id">
-              <td class="cell-bold">{{ u.name }}</td>
-              <td><span class="username-tag">{{ u.username }}</span></td>
-              <td>
-                <span class="badge-pill" :class="u.role === 'admin' ? 'badge-pill-primary' : 'badge-pill-neutral'">
-                  <i class="fas" :class="u.role === 'admin' ? 'fa-shield-alt' : 'fa-user'"></i>
-                  {{ u.role === 'admin' ? 'Administrador' : 'Operario' }}
-                </span>
-              </td>
-              <td>
-                <span v-if="u.sede" class="badge-pill badge-pill-primary"><i class="fas fa-building"></i>{{ sedeName(u.sede) }}</span>
-                <span v-else class="cell-muted">Sin sede</span>
-              </td>
-              <td class="text-center">
-                <span v-if="u.role === 'admin'" class="badge-pill badge-pill-success">Acceso total</span>
-                <span v-else-if="u.permissions?.length" class="badge-pill badge-pill-neutral"><i class="fas fa-puzzle-piece"></i>{{ u.permissions.length }}</span>
-                <span v-else class="cell-muted">Sin acceso</span>
-              </td>
-              <td>
-                <div class="row-actions">
-                  <button v-if="u.role !== 'admin'" class="btn-icon btn-warn" @click="openPermissions(u)" title="Gestionar permisos">
-                    <i class="fas fa-key"></i>
-                  </button>
-                  <button class="btn-icon btn-edit" @click="openEdit(u)" title="Editar usuario">
-                    <i class="fas fa-pen"></i>
-                  </button>
-                  <button class="btn-icon btn-del" @click="deleteUser(u.id)" title="Eliminar usuario">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
 
+      <!-- Tabla -->
+      <div class="table-card">
+        <div class="table-card-head">
+          <span class="table-card-head-title">
+            <i class="fas fa-users"></i>Usuarios <span class="table-card-count">{{ filtered.length }}</span>
+          </span>
+          <div class="table-card-search">
+            <div class="search-box">
+              <i class="fas fa-search search-box-icon"></i>
+              <input v-model="query" type="text" class="form-control" placeholder="Buscar por nombre o correo…" />
+            </div>
+            <BaseSelect v-model="roleFilter" :options="roleFilterOptions" icon="fa-user-tag" size="sm" style="min-width:170px" />
+            <BaseSelect v-model="statusFilter" :options="statusFilterOptions" icon="fa-toggle-on" size="sm" style="min-width:150px" />
+          </div>
+        </div>
+
+        <div v-if="!filtered.length" class="table-empty">
+          <i class="fas fa-user-slash"></i>
+          <p>{{ users.length ? 'Ningún usuario coincide con la búsqueda.' : 'No hay usuarios. Crea el primero con el botón de arriba.' }}</p>
+        </div>
+
+        <div v-else class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Rol</th>
+                <th>Sede</th>
+                <th>Módulos</th>
+                <th>Estado</th>
+                <th>Último acceso</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="u in filtered" :key="u.id" :class="{ 'is-inactive': !u.active }">
+                <td>
+                  <div class="us-person">
+                    <span class="us-avatar" :class="{ 'is-admin': u.role === 'admin' }">{{ initials(u.name) }}</span>
+                    <div class="us-person-info">
+                      <span class="us-name">
+                        {{ u.name }}
+                        <span v-if="u.id === me" class="us-you">Tú</span>
+                      </span>
+                      <span v-if="u.email" class="us-email">{{ u.email }}</span>
+                      <span v-else class="us-email is-missing"><i class="fas fa-exclamation-circle"></i>Sin correo — ingresa como «{{ u.username }}»</span>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge-pill" :class="u.role === 'admin' ? 'badge-pill-primary' : 'badge-pill-neutral'">
+                    <i class="fas" :class="u.role === 'admin' ? 'fa-shield-alt' : 'fa-user'"></i>
+                    {{ u.role === 'admin' ? 'Administrador' : 'Operario' }}
+                  </span>
+                </td>
+                <td>
+                  <span v-if="u.sede" class="cell-strong">{{ sedeName(u.sede) }}</span>
+                  <span v-else class="cell-muted">{{ u.role === 'admin' ? 'Todas' : 'Sin sede' }}</span>
+                </td>
+                <td>
+                  <span v-if="u.role === 'admin'" class="cell-muted">Acceso total</span>
+                  <div v-else-if="u.permissions?.length" class="us-mods">
+                    <span v-for="p in u.permissions" :key="p" class="us-mod" :title="moduleLabel(p)">
+                      <i class="fas" :class="moduleIcon(p)"></i>
+                    </span>
+                  </div>
+                  <span v-else class="cell-muted">Ninguno</span>
+                </td>
+                <td>
+                  <span v-if="!u.active" class="status-chip is-off"><i class="fas fa-circle"></i>Inactivo</span>
+                  <span v-else-if="u.mustChangePassword" class="status-chip is-pending" title="Debe cambiar su contraseña temporal al ingresar">
+                    <i class="fas fa-key"></i>Clave temporal
+                  </span>
+                  <span v-else class="status-chip is-on"><i class="fas fa-circle"></i>Activo</span>
+                </td>
+                <td class="cell-muted us-last">{{ fmtLastLogin(u.lastLoginAt) }}</td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn-icon btn-edit" @click="openEdit(u)" title="Editar usuario">
+                      <i class="fas fa-pen"></i>
+                    </button>
+                    <button class="btn-icon btn-warn" @click="askReset(u)" title="Restablecer contraseña">
+                      <i class="fas fa-key"></i>
+                    </button>
+                    <button
+                      class="btn-icon"
+                      :class="u.active ? 'btn-off' : 'btn-on'"
+                      :disabled="u.id === me"
+                      :title="u.id === me ? 'No puedes desactivar tu propia cuenta' : u.active ? 'Desactivar acceso' : 'Reactivar acceso'"
+                      @click="askToggle(u)"
+                    >
+                      <i class="fas" :class="u.active ? 'fa-user-slash' : 'fa-user-check'"></i>
+                    </button>
+                    <button
+                      class="btn-icon btn-del"
+                      :disabled="u.id === me"
+                      :title="u.id === me ? 'No puedes eliminar tu propia cuenta' : 'Eliminar usuario'"
+                      @click="askDelete(u)"
+                    >
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
   </div>
 
-  <!-- ── Modal Permisos ── -->
-  <BaseModal
-    v-model="permModal"
-    icon="fa-key"
-    title="Permisos de módulos"
-    :subtitle="permUser?.username"
-    max-width="520px"
-  >
-    <p class="perm-hint">Selecciona los módulos a los que puede acceder este usuario:</p>
-    <div class="d-flex flex-wrap gap-2">
-      <button
-        v-for="mod in ALL_MODULES" :key="mod.key"
-        type="button"
-        class="chip-toggle"
-        :class="{ 'is-active': permChecked.includes(mod.key) }"
-        @click="togglePermission(mod.key)"
-      >
-        <i class="fas" :class="mod.icon"></i>{{ mod.label }}
-      </button>
-    </div>
-    <div v-if="permError" class="mf-error mt-3">
-      <i class="fas fa-exclamation-circle"></i>{{ permError }}
-    </div>
-    <template #footer>
-      <button class="btn-cancel" @click="permModal = false">Cancelar</button>
-      <button class="btn-save" :disabled="permSaving" @click="savePermissions">
-        <i class="fas" :class="permSaving ? 'fa-spinner fa-spin' : 'fa-check'"></i>
-        {{ permSaving ? 'Guardando…' : 'Guardar permisos' }}
-      </button>
-    </template>
-  </BaseModal>
-
-  <!-- ── Modal usuario ── -->
+  <!-- ── Crear / editar usuario ── -->
   <BaseModal
     v-model="modal"
     :icon="editing ? 'fa-user-edit' : 'fa-user-plus'"
     :title="editing ? 'Editar usuario' : 'Nuevo usuario'"
-    :subtitle="editing ? editing.username : 'Completa los datos del nuevo acceso'"
-    max-width="580px"
+    :subtitle="editing ? editing.email || editing.name : 'Se creará el acceso con su correo electrónico'"
+    max-width="920px"
   >
-    <div class="mf-field">
-      <label class="mf-label">Nombre completo <span class="mf-req">*</span></label>
-      <div class="mf-wrap">
-        <i class="fas fa-user mf-icon"></i>
-        <input v-model="form.name" type="text" class="mf-inp" placeholder="Juan Pérez" />
-      </div>
-    </div>
+    <div class="uf-grid">
 
-    <div class="mrow">
-      <div v-if="!editing" class="mf-field" style="flex:1; min-width:200px">
-        <label class="mf-label">Usuario <span class="mf-req">*</span></label>
-        <div class="mf-wrap">
-          <i class="fas fa-at mf-icon"></i>
-          <input v-model="form.username" type="text" class="mf-inp" placeholder="bog_op2" autocomplete="off" />
+      <!-- ── Columna izquierda: persona + contraseña / cuenta ── -->
+      <section class="uf-col">
+        <p class="us-section">Datos de la persona</p>
+        <div class="mf-field">
+          <label class="mf-label">Nombre completo <span class="mf-req">*</span></label>
+          <div class="mf-wrap">
+            <i class="fas fa-user mf-icon"></i>
+            <input v-model="form.name" type="text" class="mf-inp" placeholder="Juan Pérez" autocomplete="off" />
+          </div>
         </div>
-      </div>
-      <div class="mf-field" style="flex:1; min-width:200px">
-        <label class="mf-label">{{ editing ? 'Nueva contraseña — opcional' : 'Contraseña *' }}</label>
-        <div class="mf-wrap">
-          <i class="fas fa-lock mf-icon"></i>
-          <input v-model="form.password" :type="showPass ? 'text' : 'password'" class="mf-inp"
-            :placeholder="editing ? 'Vacío = sin cambio' : 'Mínimo 6 caracteres'" autocomplete="new-password" />
-          <button type="button" class="mf-eye" @click="showPass = !showPass">
-            <i class="fas" :class="showPass ? 'fa-eye-slash' : 'fa-eye'"></i>
+        <div class="mf-field">
+          <label class="mf-label">Correo electrónico <span class="mf-req">*</span></label>
+          <div class="mf-wrap">
+            <i class="fas fa-envelope mf-icon"></i>
+            <input v-model="form.email" type="email" class="mf-inp" placeholder="juan.perez@empresa.com" autocomplete="off" />
+          </div>
+          <span class="mf-hint">Con este correo ingresará al sistema.</span>
+        </div>
+
+        <!-- Crear: contraseña inicial -->
+        <template v-if="!editing">
+          <p class="us-section">Contraseña de acceso</p>
+          <div class="pw-options">
+            <label class="pw-option" :class="{ 'is-active': form.passwordMode === 'auto' }">
+              <input v-model="form.passwordMode" type="radio" value="auto" />
+              <span>
+                <strong>Generar contraseña temporal</strong>
+                <small>Recomendado. Se mostrará una sola vez para compartirla.</small>
+              </span>
+            </label>
+            <label class="pw-option" :class="{ 'is-active': form.passwordMode === 'manual' }">
+              <input v-model="form.passwordMode" type="radio" value="manual" />
+              <span>
+                <strong>Definirla manualmente</strong>
+                <small>Escribes una contraseña inicial.</small>
+              </span>
+            </label>
+          </div>
+          <div v-if="form.passwordMode === 'manual'" class="mf-field">
+            <div class="mf-wrap">
+              <i class="fas fa-lock mf-icon"></i>
+              <input v-model="form.password" :type="showPass ? 'text' : 'password'" class="mf-inp"
+                placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+              <button type="button" class="mf-eye" @click="showPass = !showPass">
+                <i class="fas" :class="showPass ? 'fa-eye-slash' : 'fa-eye'"></i>
+              </button>
+            </div>
+            <PasswordStrength :password="form.password" />
+          </div>
+          <p class="us-note"><i class="fas fa-info-circle"></i>En su primer ingreso deberá crear su propia contraseña.</p>
+        </template>
+
+        <!-- Editar: información de la cuenta -->
+        <template v-else>
+          <p class="us-section">Cuenta</p>
+          <dl class="uf-account">
+            <div><dt>Usuario interno</dt><dd>{{ editing.username }}</dd></div>
+            <div><dt>Estado</dt><dd>{{ !editing.active ? 'Inactivo' : editing.mustChangePassword ? 'Clave temporal pendiente' : 'Activo' }}</dd></div>
+            <div><dt>Creado</dt><dd>{{ editing.createdAt ? fmtDate(editing.createdAt) : '—' }}</dd></div>
+            <div><dt>Último acceso</dt><dd>{{ fmtLastLogin(editing.lastLoginAt) }}</dd></div>
+          </dl>
+          <p class="us-note">
+            <i class="fas fa-key"></i>Para cambiar su contraseña usa <strong>&nbsp;Restablecer contraseña&nbsp;</strong> en la tabla.
+          </p>
+        </template>
+      </section>
+
+      <!-- ── Columna derecha: rol y acceso ── -->
+      <section class="uf-col">
+        <p class="us-section">Rol</p>
+        <div class="uf-roles">
+          <button
+            v-for="opt in roleOptions" :key="opt.value"
+            type="button"
+            class="role-card"
+            :class="{ 'is-active': form.role === opt.value }"
+            :disabled="editing && editing.id === me && opt.value !== 'admin'"
+            @click="setRole(opt.value)"
+          >
+            <span class="role-card-icon"><i class="fas" :class="opt.icon"></i></span>
+            <span class="role-card-body">
+              <span class="role-card-name">{{ opt.label }}</span>
+              <span class="role-card-desc">{{ opt.desc }}</span>
+            </span>
+            <i v-if="form.role === opt.value" class="fas fa-check-circle role-card-check"></i>
           </button>
         </div>
-      </div>
-    </div>
 
-    <div class="mf-field">
-      <label class="mf-label">Rol <span class="mf-req">*</span></label>
-      <div class="d-flex flex-wrap gap-3">
-        <button
-          v-for="opt in roleOptions" :key="opt.value"
-          type="button"
-          class="role-card"
-          :class="{ 'is-active': form.role === opt.value }"
-          @click="form.role = opt.value; form.sede = ''"
-        >
-          <span class="role-card-icon"><i class="fas" :class="opt.icon"></i></span>
-          <span class="role-card-body">
-            <span class="role-card-name">{{ opt.label }}</span>
-            <span class="role-card-desc">{{ opt.desc }}</span>
-          </span>
-          <i v-if="form.role === opt.value" class="fas fa-check-circle role-card-check"></i>
-        </button>
-      </div>
-    </div>
+        <template v-if="form.role === 'operario'">
+          <p class="us-section">Sede y módulos</p>
+          <div class="mf-field">
+            <label class="mf-label">Sede asignada <span class="mf-req">*</span></label>
+            <BaseSelect
+              v-model="form.sede"
+              :options="sedes.map(s => ({ value: s.code, label: `${s.name} — ${s.city}` }))"
+              icon="fa-building"
+              placeholder="Selecciona una sede…"
+            />
+            <span class="mf-hint">Solo verá las órdenes de esta sede.</span>
+          </div>
+          <div class="mf-field">
+            <label class="mf-label">Módulos habilitados</label>
+            <div class="uf-mods">
+              <button
+                v-for="mod in MODULES" :key="mod.key"
+                type="button"
+                class="uf-mod"
+                :class="{ 'is-active': form.permissions.includes(mod.key) }"
+                @click="togglePermission(mod.key)"
+              >
+                <span class="uf-mod-icon"><i class="fas" :class="mod.icon"></i></span>
+                <span class="uf-mod-body">
+                  <span class="uf-mod-name">{{ mod.label }}</span>
+                  <span class="uf-mod-desc">{{ mod.desc }}</span>
+                </span>
+                <span class="uf-mod-check"><i class="fas fa-check"></i></span>
+              </button>
+            </div>
+          </div>
+        </template>
 
-    <div v-if="form.role === 'operario'" class="mf-field">
-      <label class="mf-label">Sede asignada <span class="mf-req">*</span></label>
-      <BaseSelect
-        v-model="form.sede"
-        :options="sedes.map(s => ({ value: s.code, label: `${s.name} — ${s.city}` }))"
-        icon="fa-building"
-        placeholder="Selecciona una sede…"
-      />
-      <div v-if="form.sede" class="mf-sede-note mt-2">
-        <i class="fas fa-info-circle"></i>Solo verá órdenes de <strong>{{ sedeName(form.sede) }}</strong>
-      </div>
+        <div v-else class="uf-admin-note">
+          <i class="fas fa-shield-alt"></i>
+          <span>Los administradores tienen acceso a todos los módulos y sedes, además de la gestión de usuarios y sedes.</span>
+        </div>
+      </section>
     </div>
 
     <div v-if="modalError" class="mf-error">
@@ -192,75 +290,89 @@
       </button>
     </template>
   </BaseModal>
+
+  <!-- ── Credenciales (se muestran una sola vez) ── -->
+  <BaseModal
+    v-model="credModal"
+    icon="fa-key"
+    tone="success"
+    :title="cred?.isNew ? 'Usuario creado' : 'Contraseña restablecida'"
+    :subtitle="cred?.name"
+    max-width="480px"
+  >
+    <template v-if="cred">
+      <p class="cred-intro">Comparte estos datos con <strong>{{ cred.name }}</strong>. Al ingresar se le pedirá crear su propia contraseña.</p>
+      <div class="cred-box">
+        <div class="cred-row">
+          <span class="cred-label">{{ cred.email ? 'Correo' : 'Usuario' }}</span>
+          <span class="cred-val">{{ cred.email || cred.username }}</span>
+        </div>
+        <div class="cred-row">
+          <span class="cred-label">Contraseña temporal</span>
+          <span class="cred-val cred-pass">{{ cred.tempPassword }}</span>
+          <button type="button" class="btn-icon" title="Copiar contraseña" @click="copy(cred.tempPassword, 'Contraseña copiada')">
+            <i class="fas fa-copy"></i>
+          </button>
+        </div>
+      </div>
+      <p class="cred-warn"><i class="fas fa-exclamation-triangle"></i>Esta contraseña no se volverá a mostrar.</p>
+    </template>
+    <template #footer>
+      <button class="btn-cancel" @click="copy(credText, 'Datos de acceso copiados')"><i class="fas fa-copy me-2"></i>Copiar todo</button>
+      <button class="btn-save" @click="credModal = false"><i class="fas fa-check"></i>Listo</button>
+    </template>
+  </BaseModal>
+
+  <!-- ── Confirmación ── -->
+  <BaseModal
+    v-model="confirmModal"
+    :icon="confirmCfg.icon"
+    :title="confirmCfg.title"
+    :tone="confirmCfg.danger ? 'danger' : 'accent'"
+    max-width="440px"
+  >
+    <p class="confirm-text" v-html="confirmCfg.text"></p>
+    <template #footer>
+      <button class="btn-cancel" @click="confirmModal = false">Cancelar</button>
+      <button :class="confirmCfg.danger ? 'btn-danger' : 'btn-save'" :disabled="confirmBusy" @click="runConfirm">
+        <i class="fas" :class="confirmBusy ? 'fa-spinner fa-spin' : confirmCfg.icon"></i>{{ confirmCfg.action }}
+      </button>
+    </template>
+  </BaseModal>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { api } from '../api'
 import { useNotificationsStore } from '../stores/notifications'
+import { useAuthStore } from '../stores/auth'
 import BaseModal from '../components/BaseModal.vue'
 import BaseSelect from '../components/BaseSelect.vue'
 import PageHeader from '../components/PageHeader.vue'
+import PasswordStrength from '../components/PasswordStrength.vue'
 
 const users   = ref([])
 const sedes   = ref([])
 const loading = ref(true)
 const error   = ref('')
 const notify  = useNotificationsStore()
+const auth    = useAuthStore()
+const me      = computed(() => auth.user?.id)
 
 const roleOptions = [
-  { value: 'operario', label: 'Operario',       desc: 'Accede al Scanner de su sede', icon: 'fa-user' },
-  { value: 'admin',    label: 'Administrador',  desc: 'Acceso completo al sistema',   icon: 'fa-shield-alt' },
+  { value: 'operario', label: 'Operario',      desc: 'Registra órdenes de su sede',  icon: 'fa-user' },
+  { value: 'admin',    label: 'Administrador', desc: 'Acceso completo al sistema',   icon: 'fa-shield-alt' },
 ]
 
-const ALL_MODULES = [
-  { key: 'scanner',      label: 'Scanner',       icon: 'fa-qrcode'      },
-  { key: 'ordenes',      label: 'Órdenes',       icon: 'fa-layer-group' },
-  { key: 'historial',    label: 'Historial',     icon: 'fa-history'     },
-  { key: 'estadisticas', label: 'Estadísticas',  icon: 'fa-chart-bar'   },
-  { key: 'sedes',        label: 'Sedes',         icon: 'fa-building'    },
-  { key: 'usuarios',     label: 'Usuarios',      icon: 'fa-users'       },
+// Mismas claves que MODULES en el backend (sedes/usuarios son exclusivos de admin)
+const MODULES = [
+  { key: 'scanner',      label: 'Scanner',      icon: 'fa-qrcode',      desc: 'Registrar órdenes'        },
+  { key: 'ordenes',      label: 'Órdenes',      icon: 'fa-layer-group', desc: 'Sus órdenes del día'      },
+  { key: 'historial',    label: 'Historial',    icon: 'fa-history',     desc: 'Sus órdenes anteriores'   },
+  { key: 'estadisticas', label: 'Estadísticas', icon: 'fa-chart-bar',   desc: 'Indicadores de su sede'   },
 ]
-
-const permModal   = ref(false)
-const permUser    = ref(null)
-const permChecked = ref([])
-const permSaving  = ref(false)
-const permError   = ref('')
-
-function openPermissions(u) {
-  permUser.value    = u
-  permChecked.value = [...(u.permissions || [])]
-  permError.value   = ''
-  permModal.value   = true
-}
-
-function togglePermission(key) {
-  const idx = permChecked.value.indexOf(key)
-  if (idx >= 0) permChecked.value.splice(idx, 1)
-  else permChecked.value.push(key)
-}
-
-async function savePermissions() {
-  permSaving.value = true
-  permError.value  = ''
-  try {
-    const updated = await api.patch(`/api/users/${permUser.value.id}`, { permissions: permChecked.value })
-    const idx = users.value.findIndex(u => u.id === permUser.value.id)
-    if (idx >= 0) users.value[idx] = updated
-    notify.success(`Permisos de ${permUser.value.username} actualizados.`, { title: 'Permisos guardados' })
-    permModal.value = false
-    permUser.value  = null
-  } catch (e) { permError.value = e.message }
-  finally { permSaving.value = false }
-}
-
-const modal      = ref(false)
-const editing    = ref(null)
-const saving     = ref(false)
-const modalError = ref('')
-const showPass   = ref(false)
-const form       = ref({ username: '', password: '', name: '', role: 'operario', sede: '' })
+const moduleLabel = (k) => MODULES.find(m => m.key === k)?.label || k
+const moduleIcon  = (k) => MODULES.find(m => m.key === k)?.icon || 'fa-puzzle-piece'
 
 onMounted(async () => {
   try {
@@ -274,110 +386,394 @@ onMounted(async () => {
   } finally { loading.value = false }
 })
 
+const replaceUser = (u) => {
+  const idx = users.value.findIndex(x => x.id === u.id)
+  if (idx >= 0) users.value[idx] = u
+}
+
+/* ── Filtros ── */
+const query        = ref('')
+const roleFilter   = ref('all')
+const statusFilter = ref('all')
+const roleFilterOptions = [
+  { value: 'all', label: 'Todos los roles' },
+  { value: 'admin', label: 'Administradores' },
+  { value: 'operario', label: 'Operarios' },
+]
+const statusFilterOptions = [
+  { value: 'all', label: 'Todos' },
+  { value: 'active', label: 'Activos' },
+  { value: 'inactive', label: 'Inactivos' },
+]
+
+const filtered = computed(() => {
+  const q = query.value.trim().toLowerCase()
+  return users.value.filter(u =>
+    (!q || u.name.toLowerCase().includes(q) || (u.email || '').includes(q) || u.username.includes(q)) &&
+    (roleFilter.value === 'all' || u.role === roleFilter.value) &&
+    (statusFilter.value === 'all' || (statusFilter.value === 'active') === u.active)
+  )
+})
+
+const counts = computed(() => ({
+  active:  users.value.filter(u => u.active).length,
+  admins:  users.value.filter(u => u.role === 'admin').length,
+  noEmail: users.value.filter(u => !u.email).length,
+}))
+
+/* ── Crear / editar ── */
+const modal      = ref(false)
+const editing    = ref(null)
+const saving     = ref(false)
+const modalError = ref('')
+const showPass   = ref(false)
+const emptyForm  = () => ({
+  name: '', email: '', role: 'operario', sede: '',
+  permissions: ['scanner', 'ordenes', 'historial'],
+  passwordMode: 'auto', password: '',
+})
+const form = ref(emptyForm())
+
 function openCreate() {
   editing.value    = null
   showPass.value   = false
-  form.value       = { username: '', password: '', name: '', role: 'operario', sede: '' }
+  form.value       = emptyForm()
   modalError.value = ''
   modal.value      = true
 }
 
 function openEdit(u) {
   editing.value    = u
-  showPass.value   = false
-  form.value       = { username: u.username, password: '', name: u.name, role: u.role, sede: u.sede || '' }
+  form.value       = {
+    ...emptyForm(),
+    name: u.name, email: u.email || '', role: u.role, sede: u.sede || '',
+    permissions: [...(u.permissions || [])],
+  }
   modalError.value = ''
   modal.value      = true
 }
 
+function setRole(role) {
+  form.value.role = role
+  if (role === 'admin') form.value.sede = ''
+}
+
+function togglePermission(key) {
+  const list = form.value.permissions
+  const idx = list.indexOf(key)
+  idx >= 0 ? list.splice(idx, 1) : list.push(key)
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+
 async function save() {
   modalError.value = ''
   const f = form.value
+  const email = f.email.trim().toLowerCase()
 
-  if (editing.value) {
-    if (!f.name.trim())
-      return (modalError.value = 'El nombre es obligatorio.')
-    if (f.role === 'operario' && !f.sede)
-      return (modalError.value = 'Selecciona una sede para el operario.')
-    saving.value = true
-    try {
-      const payload = { name: f.name, role: f.role, sede: f.role === 'operario' ? f.sede : null }
-      if (f.password.trim()) payload.password = f.password.trim()
-      const updated = await api.patch(`/api/users/${editing.value.id}`, payload)
-      const idx = users.value.findIndex(u => u.id === editing.value.id)
-      if (idx >= 0) users.value[idx] = updated
-      notify.success(`El usuario ${updated.username} fue actualizado.`, { title: 'Usuario actualizado' })
-      modal.value = false
-    } catch (e) { modalError.value = e.message }
-    finally     { saving.value = false }
-  } else {
-    if (!f.username.trim() || !f.password.trim() || !f.name.trim())
-      return (modalError.value = 'Nombre, usuario y contraseña son obligatorios.')
-    if (f.role === 'operario' && !f.sede)
-      return (modalError.value = 'Selecciona una sede para el operario.')
-    saving.value = true
-    try {
-      const user = await api.post('/api/users', f)
-      users.value.push(user)
-      notify.success(`El usuario ${user.username} fue creado.`, { title: 'Usuario creado' })
-      modal.value = false
-    } catch (e) { modalError.value = e.message }
-    finally     { saving.value = false }
+  if (!f.name.trim())        return (modalError.value = 'Ingresa el nombre completo.')
+  if (!EMAIL_RE.test(email)) return (modalError.value = 'Ingresa un correo electrónico válido.')
+  if (f.role === 'operario' && !f.sede) return (modalError.value = 'Selecciona la sede del operario.')
+  if (!editing.value && f.passwordMode === 'manual' && f.password.length < 8)
+    return (modalError.value = 'La contraseña debe tener al menos 8 caracteres.')
+
+  const payload = {
+    name: f.name.trim(),
+    email,
+    role: f.role,
+    sede: f.role === 'operario' ? f.sede : null,
+    permissions: f.role === 'operario' ? f.permissions : [],
   }
-}
 
-async function deleteUser(id) {
-  if (!confirm('¿Eliminar este usuario?')) return
+  saving.value = true
   try {
-    const user = users.value.find(u => u.id === id)
-    await api.del(`/api/users/${id}`)
-    users.value = users.value.filter(u => u.id !== id)
-    notify.warning(`El usuario ${user?.username || ''} fue eliminado.`, { title: 'Usuario eliminado' })
-  } catch (e) {
-    notify.error(e.message || 'No fue posible eliminar el usuario.', { title: 'Error al eliminar' })
+    if (editing.value) {
+      const updated = await api.patch(`/api/users/${editing.value.id}`, payload)
+      replaceUser(updated)
+      notify.success(`Los datos de ${updated.name} fueron actualizados.`, { title: 'Usuario actualizado' })
+      modal.value = false
+    } else {
+      if (f.passwordMode === 'manual') payload.password = f.password
+      const { tempPassword, ...user } = await api.post('/api/users', payload)
+      users.value.push(user)
+      users.value.sort((a, b) => a.name.localeCompare(b.name))
+      modal.value = false
+      if (tempPassword) showCredentials(user, tempPassword, true)
+      else notify.success(`${user.name} ya puede ingresar con su correo.`, { title: 'Usuario creado' })
+    }
+  } catch (e) { modalError.value = e.message }
+  finally     { saving.value = false }
+}
+
+/* ── Credenciales ── */
+const credModal = ref(false)
+const cred      = ref(null)
+
+function showCredentials(user, tempPassword, isNew) {
+  cred.value = { ...user, tempPassword, isNew }
+  credModal.value = true
+}
+
+const credText = computed(() => cred.value
+  ? `Acceso a Conexa\nIngreso: ${window.location.origin}\n${cred.value.email ? 'Correo' : 'Usuario'}: ${cred.value.email || cred.value.username}\nContraseña temporal: ${cred.value.tempPassword}\n\nAl ingresar se te pedirá crear tu propia contraseña.`
+  : '')
+
+async function copy(text, msg) {
+  try {
+    await navigator.clipboard.writeText(text)
+    notify.success(msg, { title: 'Copiado', timeout: 2000 })
+  } catch {
+    notify.warning('No fue posible copiar; selecciona el texto manualmente.', { title: 'Portapapeles' })
   }
 }
 
+/* ── Confirmaciones ── */
+const confirmModal = ref(false)
+const confirmBusy  = ref(false)
+const confirmCfg   = ref({})
+
+function confirmAction(cfg) {
+  confirmCfg.value = cfg
+  confirmModal.value = true
+}
+
+async function runConfirm() {
+  confirmBusy.value = true
+  try {
+    await confirmCfg.value.run()
+    confirmModal.value = false
+  } catch (e) {
+    notify.error(e.message || 'No fue posible completar la acción.', { title: 'Error' })
+  } finally {
+    confirmBusy.value = false
+  }
+}
+
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+
+function askReset(u) {
+  confirmAction({
+    icon: 'fa-key', title: 'Restablecer contraseña', action: 'Restablecer',
+    text: `Se generará una contraseña temporal nueva para <strong>${esc(u.name)}</strong>. La actual dejará de funcionar.`,
+    run: async () => {
+      const { tempPassword, ...user } = await api.post(`/api/users/${u.id}/reset-password`)
+      replaceUser(user)
+      showCredentials(user, tempPassword, false)
+    },
+  })
+}
+
+function askToggle(u) {
+  const off = u.active
+  confirmAction({
+    icon: off ? 'fa-user-slash' : 'fa-user-check',
+    title: off ? 'Desactivar acceso' : 'Reactivar acceso',
+    action: off ? 'Desactivar' : 'Reactivar',
+    danger: off,
+    text: off
+      ? `<strong>${esc(u.name)}</strong> no podrá ingresar y su sesión actual se cerrará. Sus órdenes y su historial se conservan.`
+      : `<strong>${esc(u.name)}</strong> podrá volver a ingresar con su correo y contraseña.`,
+    run: async () => {
+      const updated = await api.patch(`/api/users/${u.id}`, { active: !off })
+      replaceUser(updated)
+      notify.success(`${updated.name} fue ${off ? 'desactivado' : 'reactivado'}.`, { title: off ? 'Acceso desactivado' : 'Acceso reactivado' })
+    },
+  })
+}
+
+function askDelete(u) {
+  confirmAction({
+    icon: 'fa-trash', title: 'Eliminar usuario', action: 'Eliminar', danger: true,
+    text: `¿Eliminar definitivamente a <strong>${esc(u.name)}</strong>? Esta acción no se puede deshacer.<br><br>Si solo quieres quitarle el acceso, usa <strong>Desactivar</strong>.`,
+    run: async () => {
+      await api.del(`/api/users/${u.id}`)
+      users.value = users.value.filter(x => x.id !== u.id)
+      notify.warning(`${u.name} fue eliminado.`, { title: 'Usuario eliminado' })
+    },
+  })
+}
+
+/* ── Formato ── */
 const sedeName = (code) => sedes.value.find(s => s.code === code)?.name || code || '—'
+const initials = (name = '') => name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
+
+const fmtDate = (d) => new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
+
+function fmtLastLogin(d) {
+  if (!d) return 'Nunca'
+  const date = new Date(d)
+  const mins = Math.round((Date.now() - date) / 60000)
+  if (mins < 1)  return 'Hace un momento'
+  if (mins < 60) return `Hace ${mins} min`
+  const time = date.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })
+  if (date.toDateString() === new Date().toDateString()) return `Hoy, ${time}`
+  return date.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
+}
 </script>
 
 <style scoped>
-.username-tag { font-size: 0.78rem; font-weight: 700; color: var(--ink-500); background: var(--surface); border: 1px solid var(--line); padding: 0.2rem 0.6rem; border-radius: 0.45rem; font-family: monospace; }
+/* Resumen */
+.us-stats { display:grid; grid-template-columns:repeat(4, 1fr); gap:0.75rem; margin-bottom:1rem; }
+.us-stat {
+  display:flex; flex-direction:column; gap:0.25rem;
+  padding:0.9rem 1.1rem; background:var(--paper);
+  border:1px solid var(--line); border-radius:0.65rem; box-shadow:var(--shadow-sm);
+}
+.us-stat-label { font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07rem; color:var(--ink-500); }
+.us-stat-val   { font-family:var(--font-display); font-size:1.5rem; font-weight:700; color:var(--ink-900); font-variant-numeric:tabular-nums; }
+.us-stat-val.is-warn { color:#d08a0e; }
+@media (max-width: 767px) { .us-stats { grid-template-columns:repeat(2, 1fr); } }
 
-.badge-pill { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; font-weight: 600; padding: 0.28rem 0.65rem; border-radius: 999px; }
-.badge-pill-primary { background: rgba(42,120,214,0.1); color: var(--accent-strong); }
-.badge-pill-neutral { background: var(--surface); color: var(--ink-700); }
-.badge-pill-success { background: rgba(46,139,87,0.12); color: var(--success); }
+.search-box { position:relative; flex:1 1 220px; max-width:300px; }
+.search-box-icon { position:absolute; left:0.8rem; top:50%; transform:translateY(-50%); color:var(--ink-500); font-size:0.8rem; pointer-events:none; }
+.search-box .form-control { padding-left:2.15rem; }
 
-.btn-warn:hover { background: var(--secondary); color: #fff; border-color: var(--secondary); }
+/* Persona */
+.us-person { display:flex; align-items:center; gap:0.75rem; min-width:220px; }
+.us-avatar {
+  width:2.4rem; height:2.4rem; min-width:2.4rem; border-radius:50%;
+  display:grid; place-items:center; font-size:0.78rem; font-weight:700;
+  color:var(--accent-strong); background:color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.us-avatar.is-admin { color:#fff; background:linear-gradient(135deg, var(--accent), var(--accent-strong)); }
+.us-person-info { display:flex; flex-direction:column; min-width:0; }
+.us-name  { display:flex; align-items:center; gap:0.4rem; font-weight:700; color:var(--ink-900); font-size:0.875rem; }
+.us-you   { font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05rem; padding:0.1rem 0.4rem; border-radius:999px; background:var(--surface); color:var(--ink-500); }
+.us-email { font-size:0.78rem; color:var(--ink-500); }
+.us-email.is-missing { display:inline-flex; align-items:center; gap:0.3rem; color:#b7770b; }
 
-/* Permisos */
-.perm-hint { font-size: 0.82rem; color: var(--ink-500); margin: 0 0 0.75rem; }
+tr.is-inactive td { opacity:0.55; }
+tr.is-inactive td:last-child { opacity:1; }
+
+.cell-strong { font-weight:600; color:var(--ink-900); font-size:0.85rem; }
+.us-last { white-space:nowrap; font-size:0.8rem; }
+
+.us-mods { display:flex; gap:0.3rem; }
+.us-mod {
+  width:1.7rem; height:1.7rem; border-radius:0.4rem; display:grid; place-items:center;
+  font-size:0.72rem; color:var(--accent-strong); background:color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.badge-pill { display:inline-flex; align-items:center; gap:0.35rem; font-size:0.75rem; font-weight:600; padding:0.28rem 0.65rem; border-radius:999px; white-space:nowrap; }
+.badge-pill-primary { background:rgba(42,120,214,0.1); color:var(--accent-strong); }
+.badge-pill-neutral { background:var(--surface); color:var(--ink-700); }
+
+.status-chip { display:inline-flex; align-items:center; gap:0.35rem; font-size:0.72rem; font-weight:700; padding:0.25rem 0.65rem; border-radius:999px; white-space:nowrap; }
+.status-chip .fa-circle { font-size:0.42rem; }
+.status-chip.is-on      { color:var(--success); background:color-mix(in srgb, var(--success) 12%, transparent); }
+.status-chip.is-off     { color:var(--ink-500); background:var(--surface); }
+.status-chip.is-pending { color:#b7770b; background:rgba(225,161,26,0.14); }
+
+.btn-icon:disabled { opacity:0.35; cursor:not-allowed; }
+.btn-warn:hover:not(:disabled) { background:var(--secondary); color:#fff; border-color:var(--secondary); }
+.btn-off:hover:not(:disabled)  { background:var(--ink-700); color:#fff; border-color:var(--ink-700); }
+.btn-on:hover:not(:disabled)   { background:var(--success); color:#fff; border-color:var(--success); }
+
+/* Formulario */
+.us-section {
+  margin:1.1rem 0 0.6rem; padding-bottom:0.4rem; border-bottom:1px solid var(--line);
+  font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08rem; color:var(--ink-500);
+}
+.us-section:first-child { margin-top:0; }
+.us-note { display:flex; align-items:center; gap:0.45rem; margin:0.75rem 0 0; font-size:0.78rem; color:var(--ink-500); }
+
+/* Formulario en dos columnas */
+.uf-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 2rem; }
+.uf-col  { display:flex; flex-direction:column; gap:0.9rem; min-width:0; }
+.uf-col .us-section { margin:0.35rem 0 -0.2rem; }
+.uf-col .us-section:not(:first-child) { margin-top:0.6rem; }
+@media (max-width: 820px) {
+  .uf-grid { grid-template-columns:1fr; }
+  .uf-col + .uf-col { margin-top:0.9rem; }
+}
+
+.uf-roles { display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; }
+.uf-roles .role-card { min-width:0; }
+@media (max-width: 480px) { .uf-roles { grid-template-columns:1fr; } }
+
+.uf-mods { display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; }
+.uf-mod {
+  position:relative; display:flex; align-items:center; gap:0.6rem; min-width:0;
+  padding:0.6rem 0.7rem; border-radius:0.6rem; text-align:left;
+  border:1.5px solid var(--line); background:var(--paper); cursor:pointer; transition:all 0.14s;
+}
+.uf-mod:hover { border-color:var(--ink-300); }
+.uf-mod.is-active { border-color:var(--accent); background:rgba(42,120,214,0.05); }
+.uf-mod-icon {
+  width:2rem; height:2rem; min-width:2rem; border-radius:0.45rem; display:grid; place-items:center;
+  font-size:0.8rem; background:var(--surface); color:var(--ink-500); transition:all 0.14s;
+}
+.uf-mod.is-active .uf-mod-icon { background:var(--accent); color:#fff; }
+.uf-mod-body { flex:1; min-width:0; display:flex; flex-direction:column; }
+.uf-mod-name { font-size:0.82rem; font-weight:700; color:var(--ink-900); }
+.uf-mod-desc { font-size:0.7rem; color:var(--ink-500); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.uf-mod-check {
+  width:1.1rem; height:1.1rem; min-width:1.1rem; border-radius:0.3rem; display:grid; place-items:center;
+  font-size:0.55rem; color:transparent; border:1.5px solid var(--ink-300); transition:all 0.14s;
+}
+.uf-mod.is-active .uf-mod-check { background:var(--accent); border-color:var(--accent); color:#fff; }
+@media (max-width: 480px) { .uf-mods { grid-template-columns:1fr; } }
+
+.uf-admin-note {
+  display:flex; gap:0.6rem; padding:0.85rem 1rem; border-radius:0.6rem;
+  font-size:0.8rem; line-height:1.5; color:var(--accent-strong);
+  background:rgba(42,120,214,0.06); border:1px solid rgba(42,120,214,0.15);
+}
+.uf-admin-note i { margin-top:0.2rem; }
+
+.uf-account {
+  display:grid; grid-template-columns:1fr 1fr; gap:0.75rem 1rem; margin:0;
+  padding:0.85rem 1rem; border:1px solid var(--line); border-radius:0.6rem;
+}
+.uf-account dt { font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07rem; color:var(--ink-500); }
+.uf-account dd { margin:0.15rem 0 0; font-size:0.84rem; font-weight:600; color:var(--ink-900); word-break:break-word; }
 
 .chip-toggle {
-  display: inline-flex; align-items: center; gap: 0.5rem;
-  padding: 0.5rem 0.9rem; border-radius: 999px;
-  border: 1.5px solid var(--line); background: var(--paper); color: var(--ink-700);
-  font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.14s;
+  display:inline-flex; align-items:center; gap:0.5rem;
+  padding:0.45rem 0.85rem; border-radius:999px;
+  border:1.5px solid var(--line); background:var(--paper); color:var(--ink-700);
+  font-size:0.8rem; font-weight:600; cursor:pointer; transition:all 0.14s;
 }
-.chip-toggle:hover { border-color: var(--ink-300); }
-.chip-toggle.is-active { background: rgba(42,120,214,0.1); border-color: var(--accent); color: var(--accent-strong); }
+.chip-toggle:hover { border-color:var(--ink-300); }
+.chip-toggle.is-active { background:rgba(42,120,214,0.1); border-color:var(--accent); color:var(--accent-strong); }
 
-/* Rol cards */
 .role-card {
-  flex: 1; min-width: 220px; display: flex; align-items: center; gap: 0.75rem;
-  padding: 0.75rem; border-radius: 0.65rem; border: 1.5px solid var(--line);
-  background: var(--paper); cursor: pointer; text-align: left; transition: all 0.14s;
+  flex:1; min-width:220px; display:flex; align-items:center; gap:0.75rem;
+  padding:0.75rem; border-radius:0.65rem; border:1.5px solid var(--line);
+  background:var(--paper); cursor:pointer; text-align:left; transition:all 0.14s;
 }
-.role-card:hover { border-color: var(--ink-300); }
-.role-card.is-active { border-color: var(--accent); background: rgba(42,120,214,0.06); }
+.role-card:hover:not(:disabled) { border-color:var(--ink-300); }
+.role-card:disabled { opacity:0.5; cursor:not-allowed; }
+.role-card.is-active { border-color:var(--accent); background:rgba(42,120,214,0.06); }
 .role-card-icon {
-  width: 2.5rem; height: 2.5rem; min-width: 2.5rem; border-radius: 0.5rem;
-  display: grid; place-items: center; background: var(--surface); color: var(--ink-700); font-size: 0.9rem;
+  width:2.5rem; height:2.5rem; min-width:2.5rem; border-radius:0.5rem;
+  display:grid; place-items:center; background:var(--surface); color:var(--ink-700); font-size:0.9rem;
 }
-.role-card.is-active .role-card-icon { background: var(--accent); color: #fff; }
-.role-card-body { flex: 1; min-width: 0; }
-.role-card-name { display: block; font-size: 0.85rem; font-weight: 700; color: var(--ink-900); }
-.role-card-desc { display: block; font-size: 0.7rem; color: var(--ink-500); line-height: 1.3; }
-.role-card-check { color: var(--accent); font-size: 1rem; flex-shrink: 0; }
+.role-card.is-active .role-card-icon { background:var(--accent); color:#fff; }
+.role-card-body { flex:1; min-width:0; }
+.role-card-name { display:block; font-size:0.85rem; font-weight:700; color:var(--ink-900); }
+.role-card-desc { display:block; font-size:0.7rem; color:var(--ink-500); line-height:1.3; }
+.role-card-check { color:var(--accent); font-size:1rem; flex-shrink:0; }
+
+.pw-options { display:flex; flex-direction:column; gap:0.5rem; }
+.pw-option {
+  display:flex; align-items:flex-start; gap:0.65rem; padding:0.7rem 0.85rem;
+  border:1.5px solid var(--line); border-radius:0.6rem; cursor:pointer; transition:all 0.14s;
+}
+.pw-option.is-active { border-color:var(--accent); background:rgba(42,120,214,0.05); }
+.pw-option input { margin-top:0.2rem; accent-color:var(--accent); }
+.pw-option strong { display:block; font-size:0.84rem; color:var(--ink-900); }
+.pw-option small  { display:block; font-size:0.74rem; color:var(--ink-500); }
+
+/* Credenciales */
+.cred-intro { margin:0 0 1rem; font-size:0.85rem; line-height:1.55; color:var(--ink-700); }
+.cred-box { border:1px solid var(--line); border-radius:0.65rem; overflow:hidden; }
+.cred-row { display:flex; align-items:center; gap:0.75rem; padding:0.75rem 1rem; }
+.cred-row + .cred-row { border-top:1px solid var(--line); }
+.cred-label { width:9rem; flex-shrink:0; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05rem; color:var(--ink-500); }
+.cred-val   { flex:1; font-weight:600; color:var(--ink-900); word-break:break-all; }
+.cred-pass  { font-family:ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size:1.05rem; letter-spacing:0.06rem; }
+.cred-warn  { display:flex; align-items:center; gap:0.45rem; margin:0.85rem 0 0; font-size:0.78rem; font-weight:600; color:#b7770b; }
+
+.confirm-text { margin:0; font-size:0.875rem; line-height:1.6; color:var(--ink-700); }
 </style>

@@ -19,9 +19,13 @@ async function request(method, path, body) {
 
   const data = await res.json().catch(() => ({}))
 
-  if (res.status === 401) {
+  // 401 con sesión abierta = sesión vencida o cuenta desactivada.
+  // Sin token (p. ej. en el login) es un error normal y se muestra su mensaje.
+  if (res.status === 401 && token) {
     localStorage.removeItem('auth_user')
     localStorage.removeItem('auth_token')
+    // Motivo para mostrarlo en la pantalla de ingreso
+    if (data.message) sessionStorage.setItem('auth_notice', data.message)
 
     // Evita bucles en la pantalla protegida cuando expira el token.
     if (window.location.pathname !== '/login') {
@@ -33,7 +37,12 @@ async function request(method, path, body) {
     throw err
   }
 
-  if (!res.ok) throw new Error(data.message || `Error ${res.status}`)
+  if (!res.ok) {
+    const err = new Error(data.message || `Error ${res.status}`)
+    err.status = res.status
+    err.data   = data
+    throw err
+  }
   return data
 }
 
