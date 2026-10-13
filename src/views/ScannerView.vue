@@ -14,7 +14,7 @@
             <div>
               <h2 class="left-header-title">Registrar orden</h2>
               <p class="left-header-sub">
-                {{ isOperario ? sedeNombre : 'Captura el documento y completa los datos' }}
+                {{ fixedSede ? sedeNombre : 'Captura el documento y completa los datos' }}
               </p>
             </div>
           </div>
@@ -84,7 +84,7 @@
 
               <div class="field">
                 <!-- Operario: sede fija -->
-                <template v-if="isOperario">
+                <template v-if="fixedSede">
                   <label class="flabel">Sede de producción</label>
                   <div class="mf-wrap">
                     <i class="fas fa-map-marker-alt mf-icon"></i>
@@ -302,6 +302,8 @@ onMounted(async () => {
 })
 
 const isOperario  = computed(() => auth.user?.role === 'operario')
+// Todo el que no es admin registra en su propia sede
+const fixedSede   = computed(() => auth.user?.role !== 'admin')
 const sedeFija    = computed(() => auth.user?.sede || 'BOG')
 const sedeNombre  = computed(() => sedes.value.find(s => s.code === sedeFija.value)?.name || sedeFija.value)
 
@@ -319,7 +321,7 @@ const submitting = ref(false)
 // La sede fija del operario o el fallback 'BOG' pueden no existir entre las sedes reales
 // (los códigos ahora se autogeneran); si no hay match, cae a la primera sede disponible.
 watch(sedes, (list) => {
-  if (!isOperario.value && list.length && !list.some(s => s.code === orderSede.value)) {
+  if (!fixedSede.value && list.length && !list.some(s => s.code === orderSede.value)) {
     orderSede.value = list[0].code
   }
 }, { immediate: true })
@@ -373,7 +375,7 @@ const submit = async (confirm = false) => {
     dupOpen.value = false
 
     orderCode.value = ''; orderName.value = ''
-    if (!isOperario.value) orderSede.value = sedes.value[0]?.code || ''
+    if (!fixedSede.value) orderSede.value = sedes.value[0]?.code || ''
     clearPhotos()
   } finally {
     submitting.value = false

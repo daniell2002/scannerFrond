@@ -89,9 +89,9 @@
                   </div>
                 </td>
                 <td>
-                  <span class="badge-pill" :class="u.role === 'admin' ? 'badge-pill-primary' : 'badge-pill-neutral'">
-                    <i class="fas" :class="u.role === 'admin' ? 'fa-shield-alt' : 'fa-user'"></i>
-                    {{ u.role === 'admin' ? 'Administrador' : 'Operario' }}
+                  <span class="badge-pill" :class="`role-${u.role}`">
+                    <i class="fas" :class="roleByValue(u.role)?.icon || 'fa-user'"></i>
+                    {{ roleLabel(u.role) }}
                   </span>
                 </td>
                 <td>
@@ -156,7 +156,7 @@
     :icon="editing ? 'fa-user-edit' : 'fa-user-plus'"
     :title="editing ? 'Editar usuario' : 'Nuevo usuario'"
     :subtitle="editing ? editing.email || editing.name : 'Se creará el acceso con su correo electrónico'"
-    max-width="920px"
+    max-width="1100px"
   >
     <div class="uf-grid">
 
@@ -176,9 +176,9 @@
             <i class="fas fa-envelope mf-icon"></i>
             <input v-model="form.email" type="email" class="mf-inp" placeholder="juan.perez@empresa.com" autocomplete="off" />
           </div>
-          <span class="mf-hint">Con este correo ingresará al sistema.</span>
+          <span class="mf-hint">Ingresará al sistema con su correo.</span>
         </div>
-        <div v-if="form.role === 'operario'" class="mf-field">
+        <div v-if="form.role !== 'admin'" class="mf-field">
           <label class="mf-label">Sede asignada <span class="mf-req">*</span></label>
           <BaseSelect
             v-model="form.sede"
@@ -186,27 +186,19 @@
             icon="fa-building"
             placeholder="Selecciona una sede…"
           />
-          <span class="mf-hint">{{ isAdmin ? 'Solo verá las órdenes de esta sede.' : 'Solo puedes asignar operarios a tu sede.' }}</span>
+          <span class="mf-hint">{{ isAdmin ? 'Trabajará solo con las órdenes de esta sede.' : 'Solo puedes asignar operarios a tu sede.' }}</span>
         </div>
 
         <!-- Crear: contraseña inicial -->
         <template v-if="!editing">
           <p class="us-section">Contraseña de acceso</p>
-          <div class="pw-options">
-            <label class="pw-option" :class="{ 'is-active': form.passwordMode === 'auto' }">
-              <input v-model="form.passwordMode" type="radio" value="auto" />
-              <span>
-                <strong>Generar contraseña temporal</strong>
-                <small>Recomendado. Se mostrará una sola vez para compartirla.</small>
-              </span>
-            </label>
-            <label class="pw-option" :class="{ 'is-active': form.passwordMode === 'manual' }">
-              <input v-model="form.passwordMode" type="radio" value="manual" />
-              <span>
-                <strong>Definirla manualmente</strong>
-                <small>Escribes una contraseña inicial.</small>
-              </span>
-            </label>
+          <div class="pw-seg" role="radiogroup" aria-label="Contraseña inicial">
+            <button type="button" role="radio" :aria-checked="form.passwordMode === 'auto'" :class="{ 'is-active': form.passwordMode === 'auto' }" @click="form.passwordMode = 'auto'">
+              <i class="fas fa-wand-magic-sparkles"></i>Generar
+            </button>
+            <button type="button" role="radio" :aria-checked="form.passwordMode === 'manual'" :class="{ 'is-active': form.passwordMode === 'manual' }" @click="form.passwordMode = 'manual'">
+              <i class="fas fa-keyboard"></i>Escribirla
+            </button>
           </div>
           <div v-if="form.passwordMode === 'manual'" class="mf-field">
             <div class="mf-wrap">
@@ -219,7 +211,7 @@
             </div>
             <PasswordStrength :password="form.password" />
           </div>
-          <p class="us-note"><i class="fas fa-info-circle"></i>En su primer ingreso deberá crear su propia contraseña.</p>
+          <p v-else class="mf-hint">Se mostrará una sola vez para que se la compartas. Deberá cambiarla en su primer ingreso.</p>
         </template>
 
         <!-- Editar: información de la cuenta -->
@@ -231,13 +223,11 @@
             <div><dt>Creado</dt><dd>{{ editing.createdAt ? fmtDate(editing.createdAt) : '—' }}</dd></div>
             <div><dt>Último acceso</dt><dd>{{ fmtLastLogin(editing.lastLoginAt) }}</dd></div>
           </dl>
-          <p class="us-note">
-            <i class="fas fa-key"></i>Para cambiar su contraseña usa <strong>&nbsp;Restablecer contraseña&nbsp;</strong> en la tabla.
-          </p>
         </template>
+
       </section>
 
-      <!-- ── Columna derecha: rol y acceso ── -->
+      <!-- ── Columna central: rol y lo que verá ── -->
       <section class="uf-col">
         <p class="us-section">Rol</p>
         <div class="uf-roles">
@@ -258,7 +248,21 @@
           </button>
         </div>
 
-        <template v-if="form.role === 'operario'">
+        <!-- Resumen de acceso -->
+        <div class="uf-summary">
+          <p class="uf-summary-title"><i class="fas fa-eye"></i>Lo que verá {{ form.name.trim().split(' ')[0] || 'este usuario' }}</p>
+          <ul>
+            <li v-for="(l, i) in summary" :key="i" :class="{ 'is-warn': l.warn }">
+              <i class="fas" :class="l.icon"></i><span>{{ l.text }}</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ── Columna derecha: módulos ── -->
+      <section class="uf-col">
+
+        <template v-if="form.role !== 'admin'">
           <div class="uf-mods-head">
             <p class="us-section">Módulos habilitados</p>
             <span class="uf-mods-actions">
@@ -288,18 +292,11 @@
               </button>
             </div>
           </div>
-          <p v-if="form.permissions.includes('usuarios')" class="uf-warn">
-            <i class="fas fa-triangle-exclamation"></i>
-            Con <strong>&nbsp;Usuarios&nbsp;</strong> podrá crear y editar operarios de su sede, sin poder dar más módulos de los que tiene.
-          </p>
-          <p v-else-if="!form.permissions.length" class="uf-warn">
-            <i class="fas fa-triangle-exclamation"></i>Sin módulos no podrá usar el sistema.
-          </p>
         </template>
 
         <div v-else class="uf-admin-note">
           <i class="fas fa-shield-alt"></i>
-          <span>Los administradores tienen acceso a todos los módulos y sedes, además de la gestión de usuarios y sedes.</span>
+          <span>El administrador tiene todos los módulos en todas las sedes; no hace falta elegirlos.</span>
         </div>
       </section>
     </div>
@@ -376,7 +373,7 @@ import BaseModal from '../components/BaseModal.vue'
 import BaseSelect from '../components/BaseSelect.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PasswordStrength from '../components/PasswordStrength.vue'
-import { MODULE_GROUPS, ALL_MODULES, DEFAULT_OPERARIO_PERMISSIONS, moduleByKey } from '../utils/modules'
+import { MODULE_GROUPS, ALL_MODULES, DEFAULT_OPERARIO_PERMISSIONS, ROLES, moduleByKey, roleByValue, roleLabel, accessSummary } from '../utils/modules'
 
 const users   = ref([])
 const sedes   = ref([])
@@ -386,11 +383,8 @@ const notify  = useNotificationsStore()
 const auth    = useAuthStore()
 const me      = computed(() => auth.user?.id)
 
-const visibleRoles = computed(() => roleOptions.filter(r => r.value !== 'admin' || isAdmin.value))
-const roleOptions = [
-  { value: 'operario', label: 'Operario',      desc: 'Registra órdenes de su sede',  icon: 'fa-user' },
-  { value: 'admin',    label: 'Administrador', desc: 'Acceso completo al sistema',   icon: 'fa-shield-alt' },
-]
+// Solo el admin asigna roles de supervisor o administrador
+const visibleRoles = computed(() => ROLES.filter(r => r.value === 'operario' || isAdmin.value))
 
 // Misma definición que el menú lateral (utils/modules.js)
 const moduleLabel = (k) => moduleByKey(k)?.label || k
@@ -400,7 +394,7 @@ const moduleIcon  = (k) => moduleByKey(k)?.icon || 'fa-puzzle-piece'
    sede y solo otorga módulos que él mismo tiene (el backend lo valida igual). */
 const isAdmin  = computed(() => auth.user?.role === 'admin')
 const canGrant = (key) => isAdmin.value || (auth.user?.permissions || []).includes(key)
-const canManage = (u) => isAdmin.value || (u.role !== 'admin' && u.sede === auth.user?.sede)
+const canManage = (u) => isAdmin.value || (u.role === 'operario' && u.sede === auth.user?.sede)
 const sedeOptions = computed(() => sedes.value
   .filter(s => isAdmin.value || s.code === auth.user?.sede)
   .map(s => ({ value: s.code, label: `${s.name} — ${s.city}` })))
@@ -435,6 +429,7 @@ const statusFilter = ref('all')
 const roleFilterOptions = [
   { value: 'all', label: 'Todos los roles' },
   { value: 'admin', label: 'Administradores' },
+  { value: 'supervisor', label: 'Supervisores' },
   { value: 'operario', label: 'Operarios' },
 ]
 const statusFilterOptions = [
@@ -491,10 +486,19 @@ function openEdit(u) {
   modal.value      = true
 }
 
+// Al elegir un rol se aplica su plantilla de módulos (luego se puede ajustar)
 function setRole(role) {
+  if (form.value.role === role) return
   form.value.role = role
   if (role === 'admin') form.value.sede = ''
+  form.value.permissions = (roleByValue(role)?.preset || []).filter(k => canGrant(k))
 }
+
+const summary = computed(() => accessSummary({
+  role: form.value.role,
+  sedeName: sedeName(form.value.sede) !== '—' ? sedeName(form.value.sede) : '',
+  permissions: form.value.permissions,
+}))
 
 function togglePermission(key) {
   const list = form.value.permissions
@@ -511,7 +515,7 @@ async function save() {
 
   if (!f.name.trim())        return (modalError.value = 'Ingresa el nombre completo.')
   if (!EMAIL_RE.test(email)) return (modalError.value = 'Ingresa un correo electrónico válido.')
-  if (f.role === 'operario' && !f.sede) return (modalError.value = 'Selecciona la sede del operario.')
+  if (f.role !== 'admin' && !f.sede) return (modalError.value = `Selecciona la sede del ${roleLabel(f.role).toLowerCase()}.`)
   if (!editing.value && f.passwordMode === 'manual' && f.password.length < 8)
     return (modalError.value = 'La contraseña debe tener al menos 8 caracteres.')
 
@@ -519,8 +523,8 @@ async function save() {
     name: f.name.trim(),
     email,
     role: f.role,
-    sede: f.role === 'operario' ? f.sede : null,
-    permissions: f.role === 'operario' ? f.permissions : [],
+    sede: f.role !== 'admin' ? f.sede : null,
+    permissions: f.role !== 'admin' ? f.permissions : [],
   }
 
   saving.value = true
@@ -702,23 +706,51 @@ tr.is-inactive td:last-child { opacity:1; }
   font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08rem; color:var(--ink-500);
 }
 .us-section:first-child { margin-top:0; }
-.us-note { display:flex; align-items:center; gap:0.45rem; margin:0.75rem 0 0; font-size:0.78rem; color:var(--ink-500); }
 
 /* Formulario en dos columnas */
-.uf-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 2rem; }
+.uf-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:0 1.75rem; }
+@media (max-width: 1150px) { .uf-grid { grid-template-columns:1fr 1fr; } .uf-grid > .uf-col:last-child { grid-column:1 / -1; } }
 .uf-col  { display:flex; flex-direction:column; gap:0.9rem; min-width:0; }
-.uf-col .us-section { margin:0.35rem 0 -0.2rem; }
+.uf-col .us-section { margin:0 0 -0.2rem; }
 .uf-col .us-section:not(:first-child) { margin-top:0.6rem; }
 @media (max-width: 820px) {
   .uf-grid { grid-template-columns:1fr; }
   .uf-col + .uf-col { margin-top:0.9rem; }
 }
 
-.uf-roles { display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; }
+/* Nombre y correo en una fila; módulos compactos (la descripción va en el title) */
+.uf-mods .uf-mod { padding:0.3rem 0.5rem; gap:0.5rem; }
+.uf-mods .uf-mod-icon { width:1.5rem; height:1.5rem; min-width:1.5rem; font-size:0.68rem; }
+.uf-mods .uf-mod-desc { display:none; }
+.uf-mods .uf-mod-name { font-size:0.8rem; }
+.uf-group { gap:0.3rem !important; }
+.uf-roles { display:flex; flex-direction:column; gap:0.45rem; }
+.uf-roles .role-card { min-width:0; padding:0.55rem 0.7rem; gap:0.65rem; }
+.uf-roles .role-card-icon { width:2rem; height:2rem; min-width:2rem; font-size:0.8rem; }
+.uf-roles .role-card-name { font-size:0.84rem; }
+.uf-roles .role-card-desc { font-size:0.72rem; }
+
+.pw-seg { display:grid; grid-template-columns:1fr 1fr; padding:0.2rem; gap:0.2rem; background:var(--surface); border:1px solid var(--line); border-radius:0.6rem; }
+.pw-seg button { display:inline-flex; align-items:center; justify-content:center; gap:0.45rem; padding:0.5rem 0.6rem; border:none; border-radius:0.45rem; background:transparent; color:var(--ink-500); font-family:var(--font-body); font-size:0.8rem; font-weight:600; cursor:pointer; transition:background 0.14s, color 0.14s; }
+.pw-seg button:hover { color:var(--ink-900); }
+.pw-seg button.is-active { background:var(--paper); color:var(--ink-900); box-shadow:var(--shadow-sm); }
+
+.uf-summary { margin-top:0.35rem; padding:0.85rem 1rem; border-radius:0.65rem; background:color-mix(in srgb, var(--accent) 5%, var(--paper)); border:1px solid color-mix(in srgb, var(--accent) 18%, var(--line)); }
+.uf-summary-title { display:flex; align-items:center; gap:0.45rem; margin:0 0 0.5rem; font-size:0.8rem; font-weight:700; color:var(--accent-strong); }
+html.dark .uf-summary-title { color:#93c5fd; }
+.uf-summary ul { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:0.35rem; }
+.uf-summary li { display:flex; gap:0.55rem; font-size:0.8rem; line-height:1.4; color:var(--ink-700); }
+.uf-summary li i { width:0.95rem; min-width:0.95rem; margin-top:0.18rem; text-align:center; font-size:0.72rem; color:var(--ink-400); }
+.uf-summary li.is-warn, .uf-summary li.is-warn i { color:var(--warning); }
+
+.badge-pill.role-admin      { background:var(--accent-soft); color:var(--accent-strong); }
+.badge-pill.role-supervisor { background:color-mix(in srgb, var(--series-7) 12%, transparent); color:var(--series-7); }
+.badge-pill.role-operario   { background:var(--surface); color:var(--ink-700); }
 .uf-roles .role-card { min-width:0; }
 @media (max-width: 480px) { .uf-roles { grid-template-columns:1fr; } }
 
-.uf-mods { display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; }
+.uf-mods { display:grid; grid-template-columns:1fr; gap:0.22rem; }
+@media (max-width: 1150px) { .uf-mods { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
 .uf-mod {
   position:relative; display:flex; align-items:center; gap:0.6rem; min-width:0;
   padding:0.6rem 0.7rem; border-radius:0.6rem; text-align:left;
@@ -742,7 +774,6 @@ tr.is-inactive td:last-child { opacity:1; }
 .uf-group { display:flex; flex-direction:column; gap:0.35rem; }
 .uf-group-label { font-size:0.7rem; font-weight:600; color:var(--ink-500); }
 .uf-mod.is-locked { opacity:0.5; cursor:not-allowed; }
-.uf-warn { display:flex; align-items:center; gap:0.45rem; margin:0; padding:0.55rem 0.75rem; border-radius:0.5rem; font-size:0.76rem; line-height:1.4; color:var(--warning); background:color-mix(in srgb, var(--warning) 9%, transparent); }
 .uf-mod-check {
   width:1.1rem; height:1.1rem; min-width:1.1rem; border-radius:0.3rem; display:grid; place-items:center;
   font-size:0.55rem; color:transparent; border:1.5px solid var(--ink-300); transition:all 0.14s;
@@ -791,15 +822,6 @@ tr.is-inactive td:last-child { opacity:1; }
 .role-card-desc { display:block; font-size:0.7rem; color:var(--ink-500); line-height:1.3; }
 .role-card-check { color:var(--accent); font-size:1rem; flex-shrink:0; }
 
-.pw-options { display:flex; flex-direction:column; gap:0.5rem; }
-.pw-option {
-  display:flex; align-items:flex-start; gap:0.65rem; padding:0.7rem 0.85rem;
-  border:1.5px solid var(--line); border-radius:0.6rem; cursor:pointer; transition:all 0.14s;
-}
-.pw-option.is-active { border-color:var(--accent); background:rgba(42,120,214,0.05); }
-.pw-option input { margin-top:0.2rem; accent-color:var(--accent); }
-.pw-option strong { display:block; font-size:0.84rem; color:var(--ink-900); }
-.pw-option small  { display:block; font-size:0.74rem; color:var(--ink-500); }
 
 /* Credenciales */
 .cred-intro { margin:0 0 1rem; font-size:0.85rem; line-height:1.55; color:var(--ink-700); }

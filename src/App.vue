@@ -155,7 +155,7 @@ import { useAuthStore } from './stores/auth'
 import { useOrdersStore } from './stores/orders'
 import { useNotificationsStore } from './stores/notifications'
 import { useFeedbackStore } from './stores/feedback'
-import { MODULE_GROUPS, canAccess } from './utils/modules'
+import { MODULE_GROUPS, canAccess, roleLabel as roleName } from './utils/modules'
 import { api } from './api'
 import NotificationsTray from './components/NotificationsTray.vue'
 import NotificationsBell from './components/NotificationsBell.vue'
@@ -276,7 +276,7 @@ const navSections = computed(() =>
     .filter(g => g.items.length)
 )
 
-const roleLabel = computed(() => isAdmin.value ? 'Administrador' : 'Operario')
+const roleLabel = computed(() => roleName(auth.user?.role))
 
 // Ubicación actual para la barra superior
 const PAGES = {

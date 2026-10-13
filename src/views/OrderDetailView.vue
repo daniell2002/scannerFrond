@@ -315,7 +315,8 @@ onMounted(async () => {
 const reviews  = useReviewsStore()
 const auth     = useAuthStore()
 const feedback = useFeedbackStore()
-const isAdmin  = computed(() => auth.user?.role === 'admin')
+// Admin y supervisor revisan órdenes y envían observaciones
+const isAdmin  = computed(() => ['admin', 'supervisor'].includes(auth.user?.role))
 watch(order, o => {
   if (o?.pendingReview && isAdmin.value) reviews.markReviewed(o.code)
 }, { immediate: true })

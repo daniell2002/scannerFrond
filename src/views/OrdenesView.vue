@@ -33,7 +33,7 @@
               />
             </div>
             <BaseSelect
-              v-if="!isOperario"
+              v-if="isAdmin"
               :model-value="filters.sede"
               @update:model-value="onSedeChange"
               :options="[{ value: 'all', label: 'Todas las sedes' }, ...ordersStore.sedes.map(s => ({ value: s.code, label: s.name }))]"
@@ -42,7 +42,7 @@
               style="min-width:180px"
             />
             <BaseSelect
-              v-if="isAdmin"
+              v-if="isReviewer"
               :model-value="filters.operator"
               @update:model-value="v => ordersStore.setFilter('operator', v)"
               :options="operatorOptions"
@@ -134,6 +134,8 @@ const ordersStore = useOrdersStore()
 const authStore   = useAuthStore()
 const { filteredOrders, filters, loading, sedes, todayOrders } = storeToRefs(ordersStore)
 const isOperario  = computed(() => authStore.user?.role === 'operario')
+// Admin y supervisor ven a todo el equipo (el supervisor, solo su sede)
+const isReviewer = computed(() => ['admin', 'supervisor'].includes(authStore.user?.role))
 const isAdmin     = computed(() => authStore.user?.role === 'admin')
 
 // Operario: solo las órdenes del día que él registró
@@ -144,7 +146,7 @@ const rows = computed(() =>
 )
 
 const { options: operatorOptions } = useResponsables(
-  todayOrders, computed(() => filters.value.sede), isAdmin
+  todayOrders, computed(() => filters.value.sede), isReviewer
 )
 
 function onSedeChange(v) {

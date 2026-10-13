@@ -49,7 +49,7 @@
               />
             </div>
             <BaseSelect
-              v-if="!isOperario"
+              v-if="isAdmin"
               :model-value="filters.sede"
               @update:model-value="onSedeChange"
               :options="[{ value: 'all', label: 'Todas las sedes' }, ...ordersStore.sedes.map(s => ({ value: s.code, label: s.name }))]"
@@ -58,7 +58,7 @@
               style="min-width:180px"
             />
             <BaseSelect
-              v-if="isAdmin"
+              v-if="isReviewer"
               v-model="filters.operator"
               :options="operatorOptions"
               icon="fa-user"
@@ -157,6 +157,8 @@ const ordersStore = useOrdersStore()
 const authStore    = useAuthStore()
 const { historicalOrders, orders, sedes } = storeToRefs(ordersStore)
 const isOperario = computed(() => authStore.user?.role === 'operario')
+// Admin y supervisor ven a todo el equipo (el supervisor, solo su sede)
+const isReviewer = computed(() => ['admin', 'supervisor'].includes(authStore.user?.role))
 const isAdmin    = computed(() => authStore.user?.role === 'admin')
 
 onMounted(() => ordersStore.fetchOrders())
@@ -183,7 +185,7 @@ async function generatePdf(order) {
 const filters = ref({ query: '', sede: 'all', operator: 'all' })
 
 const { options: operatorOptions } = useResponsables(
-  historicalOrders, computed(() => filters.value.sede), isAdmin
+  historicalOrders, computed(() => filters.value.sede), isReviewer
 )
 
 function onSedeChange(v) {

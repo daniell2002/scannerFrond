@@ -2,7 +2,7 @@ import { ref, computed, onMounted } from 'vue'
 import { api } from '../api'
 
 /*
- * Opciones del select "Responsable" (solo admin).
+ * Opciones del select "Responsable" (admin y supervisor).
  * Une los usuarios registrados con los nombres que ya aparecen en las órdenes,
  * para que salgan tanto operarios sin órdenes aún como nombres antiguos.
  * Las órdenes guardan el nombre del usuario (user.name) en `operator`.
@@ -24,7 +24,7 @@ export function useResponsables(ordersRef, sedeRef, enabledRef) {
     const inSede = (s) => sede === 'all' || s === sede
 
     const names = new Set(
-      users.value.filter(u => u.role === 'operario' && inSede(u.sede)).map(u => u.name)
+      users.value.filter(u => u.role !== 'admin' && inSede(u.sede)).map(u => u.name)
     )
     // Los administradores no son responsables de sede: no se listan.
     const adminNames = new Set(users.value.filter(u => u.role === 'admin').map(u => u.name))

@@ -107,7 +107,8 @@ const router      = useRouter()
 const { total, orders } = storeToRefs(reviews)
 const { items: fbItems, unseen } = storeToRefs(feedback)
 
-const isAdmin = computed(() => auth.user?.role === 'admin')
+// Admin y supervisor revisan órdenes; el operario recibe observaciones
+const isAdmin = computed(() => ['admin', 'supervisor'].includes(auth.user?.role))
 
 const root = ref(null)
 const open = ref(false)
