@@ -101,8 +101,8 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>Código</th>
-              <th>Producto</th>
+              <th>Orden producción</th>
+              <th>Cliente</th>
               <th>Sede</th>
               <th>Operador</th>
               <th>Hora</th>

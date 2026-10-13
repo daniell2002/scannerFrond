@@ -23,16 +23,28 @@
         :subtitle="`${order.code} · ${order.product}`"
       >
         <template #action>
-          <RouterLink to="/ordenes" class="btn-add-outline">
-            <i class="fas fa-arrow-left"></i>Órdenes
-          </RouterLink>
+          <div class="det-actions">
+            <button
+              v-if="isAdmin || feedbackList.length"
+              class="btn-add fb-btn"
+              :title="unseenCount ? unseenTitle : 'Ver retroalimentación'"
+              @click="openFeedbackHistory"
+            >
+              <i class="fas fa-comment-dots"></i>Retroalimentación
+              <span v-if="feedbackList.length" class="fb-btn-count">{{ feedbackList.length }}</span>
+              <span v-if="unseenCount" class="fb-btn-dot" aria-hidden="true"></span>
+            </button>
+            <button class="btn-add" @click="goBack">
+              <i class="fas fa-arrow-left"></i>Volver
+            </button>
+          </div>
         </template>
       </PageHeader>
 
       <!-- Detalles + Sede a la izquierda, evidencia a la derecha -->
       <div class="row mb-4">
 
-        <div class="col-12 det-cols-left" :class="order.photoUrl ? 'col-md-4' : 'col-md-12'">
+        <div class="col-12 det-cols-left" :class="photoList.length ? 'col-md-4' : 'col-md-12'">
 
           <!-- Detalles -->
           <div class="det-card mb-4">
@@ -85,17 +97,32 @@
         </div>
 
         <!-- Evidencia fotográfica -->
-        <div v-if="order.photoUrl" class="col-12 col-md-8">
+        <div v-if="photoList.length" class="col-12 col-md-8">
           <div class="det-card h-100">
             <div class="det-card-head">
               <div class="det-card-head-icon"><i class="fas fa-camera"></i></div>
               <span class="det-card-head-title">Evidencia fotográfica</span>
+              <span v-if="photoList.length > 1" class="table-card-count ms-2">{{ photoList.length }} fotos</span>
               <button class="btn-icon ms-auto" @click="openPhotoModal" title="Expandir evidencia">
                 <i class="fas fa-expand"></i>
               </button>
             </div>
             <div class="det-photo-wrap">
-              <img :src="photoFullUrl" alt="Evidencia de la orden" class="det-photo" @click="openPhotoModal" />
+              <img :src="photoFullUrl" :alt="`Evidencia ${photoIdx + 1} de la orden`" class="det-photo" @click="openPhotoModal" />
+            </div>
+            <div v-if="photoList.length > 1" class="det-strip">
+              <button
+                v-for="(src, i) in photoList"
+                :key="src"
+                type="button"
+                class="det-thumb"
+                :class="{ 'is-active': i === photoIdx }"
+                :title="`Foto ${i + 1}`"
+                @click="photoIdx = i"
+              >
+                <img :src="src" :alt="`Foto ${i + 1}`" />
+                <span>{{ i + 1 }}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -106,17 +133,129 @@
 
   </div>
 
+  <!-- Modal: historial de retroalimentación -->
+  <BaseModal
+    v-model="fbHistoryOpen"
+    icon="fa-comments"
+    :title="order ? `Retroalimentación · orden ${order.code}` : 'Retroalimentación'"
+    :subtitle="feedbackList.length
+      ? `${feedbackList.length} ${feedbackList.length === 1 ? 'comentario' : 'comentarios'}`
+      : 'Sin comentarios aún'"
+    max-width="600px"
+  >
+    <div v-if="!feedbackList.length" class="fb-empty">
+      <i class="fas fa-comment-slash"></i>
+      <p>Esta orden aún no tiene retroalimentación.</p>
+    </div>
+
+    <div class="fb-list">
+      <article v-for="f in feedbackList" :key="f.id" class="fb-item" :class="{ 'is-new': newIds.has(f.id) }">
+
+        <!-- Quién, para quién y cuándo -->
+        <header class="fb-head">
+          <span class="fb-avatar">{{ initials(f.authorName) }}</span>
+          <div class="fb-who">
+            <span class="fb-author">
+              {{ f.authorName }}
+              <span v-if="newIds.has(f.id)" class="fb-new">Nueva</span>
+            </span>
+            <span class="fb-recipient">Para <strong>{{ f.recipientName || 'Sin destinatario' }}</strong></span>
+          </div>
+          <time class="fb-date" :datetime="f.createdAt">
+            <span>{{ fmtFbDate(f.createdAt) }}</span>
+            <span class="fb-time">{{ fmtFbTime(f.createdAt) }}</span>
+          </time>
+        </header>
+
+        <!-- Contenido -->
+        <div class="fb-body">
+          <p class="fb-label">Observaciones</p>
+          <p class="fb-comment">{{ f.comment }}</p>
+
+          <template v-if="f.evidences.length">
+            <p class="fb-label mt-3">Evidencias ({{ f.evidences.length }})</p>
+            <div class="fb-grid">
+              <a v-for="(src, i) in f.evidences" :key="src" :href="BASE + src" target="_blank" rel="noopener" class="fb-thumb" :title="`Abrir evidencia ${i + 1}`">
+                <img :src="BASE + src" :alt="`Evidencia ${i + 1}`" />
+              </a>
+            </div>
+          </template>
+        </div>
+
+        <!-- Estado de lectura -->
+        <footer class="fb-foot" :class="f.seenAt ? 'is-seen' : 'is-pending'">
+          <i class="fas" :class="f.seenAt ? 'fa-check-double' : 'fa-clock'"></i>
+          <span v-if="f.seenAt">
+            Vista por {{ f.recipientName }} el {{ fmtFbDate(f.seenAt) }} a las {{ fmtFbTime(f.seenAt) }}
+          </span>
+          <span v-else>{{ f.recipientName || 'El operario' }} aún no la ha visto</span>
+        </footer>
+      </article>
+    </div>
+
+    <template v-if="isAdmin" #footer>
+      <button class="btn-save" @click="openFeedbackModal">
+        <i class="fas fa-plus"></i>Nueva retroalimentación
+      </button>
+    </template>
+  </BaseModal>
+
+  <!-- Modal: nueva retroalimentación (admin) -->
+  <BaseModal
+    v-model="fbModalOpen"
+    icon="fa-comment-dots"
+    title="Retroalimentación"
+    :subtitle="order ? `${order.code} · para ${order.operator}` : ''"
+    max-width="560px"
+  >
+    <label class="mf-label">Comentario <span class="freq">*</span></label>
+    <textarea
+      v-model="fbComment"
+      class="form-control fb-textarea"
+      rows="4"
+      maxlength="1000"
+      placeholder="Describe lo que se debe corregir o tener en cuenta…"
+    ></textarea>
+    <div class="fb-counter">{{ fbComment.length }}/1000</div>
+
+    <label class="mf-label mt-3">Evidencias <small class="text-muted">(opcional, máx. 5 imágenes)</small></label>
+    <div class="fb-upload-grid">
+      <div v-for="(p, i) in fbPreviews" :key="p.url" class="fb-thumb fb-thumb-edit">
+        <img :src="p.url" :alt="p.file.name" />
+        <button type="button" class="fb-remove" title="Quitar" @click="removeEvidence(i)">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <label v-if="fbPreviews.length < 5" class="fb-add">
+        <input type="file" accept="image/*" multiple hidden @change="onEvidence" />
+        <i class="fas fa-camera"></i>
+        <span>Agregar</span>
+      </label>
+    </div>
+
+    <template #footer>
+      <button class="btn-cancel" @click="fbModalOpen = false">Cancelar</button>
+      <button class="btn-save" :disabled="!fbComment.trim() || fbSending" @click="sendFeedback">
+        <i class="fas" :class="fbSending ? 'fa-spinner fa-spin' : 'fa-paper-plane'"></i>
+        {{ fbSending ? 'Enviando…' : 'Enviar al operario' }}
+      </button>
+    </template>
+  </BaseModal>
+
   <!-- Modal de evidencia: zoom + arrastre -->
   <BaseModal
     v-model="photoModalOpen"
     icon="fa-camera"
     title="Evidencia fotográfica"
+    :subtitle="photoList.length > 1 ? `Foto ${photoIdx + 1} de ${photoList.length}` : ''"
     max-width="900px"
   >
     <div class="photo-modal-controls">
+      <button v-if="photoList.length > 1" class="btn-icon" @click="prevPhoto" title="Foto anterior"><i class="fas fa-chevron-left"></i></button>
       <button class="btn-icon" @click="zoomOut" title="Alejar"><i class="fas fa-search-minus"></i></button>
       <button class="btn-icon" @click="resetView" title="Restablecer"><i class="fas fa-compress"></i></button>
       <button class="btn-icon" @click="zoomIn" title="Acercar"><i class="fas fa-search-plus"></i></button>
+      <button v-if="photoList.length > 1" class="btn-icon" @click="nextPhoto" title="Foto siguiente"><i class="fas fa-chevron-right"></i></button>
     </div>
     <div
       class="photo-modal-stage"
@@ -142,16 +281,109 @@
 
 
 <script setup>
-import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useOrdersStore } from '../stores/orders'
+import { useReviewsStore } from '../stores/reviews'
+import { useFeedbackStore } from '../stores/feedback'
+import { useAuthStore } from '../stores/auth'
 import { BASE } from '../api'
 import PageHeader from '../components/PageHeader.vue'
 import BaseModal from '../components/BaseModal.vue'
 
-const route = useRoute()
+const route  = useRoute()
+const router = useRouter()
+
+// Vuelve a la vista anterior (Órdenes, Historial…); si se entró directo, a Órdenes
+const goBack = () => window.history.state?.back ? router.back() : router.push('/ordenes')
 const order = computed(() => useOrdersStore().getOrderByCode(route.params.code))
-const photoFullUrl = computed(() => order.value?.photoUrl ? `${BASE}${order.value.photoUrl}` : '')
+/* Abrir la orden cuenta como revisada (solo admin) */
+const reviews  = useReviewsStore()
+const auth     = useAuthStore()
+const feedback = useFeedbackStore()
+const isAdmin  = computed(() => auth.user?.role === 'admin')
+watch(order, o => {
+  if (o?.pendingReview && isAdmin.value) reviews.markReviewed(o.code)
+}, { immediate: true })
+
+/* Retroalimentación: historial + modal de envío */
+const feedbackList = ref([])
+const loadFeedback = async () => {
+  feedbackList.value = route.params.code ? await feedback.fetchForOrder(route.params.code) : []
+}
+watch(() => route.params.code, loadFeedback, { immediate: true })
+
+/* Pendientes: el operario no las ha visto (para el admin: aún no las lee el operario) */
+const unseenCount = computed(() => feedbackList.value.filter(f => !f.seenAt).length)
+const unseenTitle = computed(() => isAdmin.value
+  ? 'El operario aún no ha visto la retroalimentación'
+  : 'Tienes retroalimentación sin revisar')
+
+const initials  = (name = '') => name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
+const fmtFbDate = (d) => new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
+const fmtFbTime = (d) => new Date(d).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })
+
+const fbHistoryOpen = ref(false)
+const newIds = ref(new Set())   // resaltadas como "Nueva" mientras el modal está abierto
+
+function openFeedbackHistory() {
+  newIds.value = new Set(feedbackList.value.filter(f => !f.seenAt).map(f => f.id))
+  fbHistoryOpen.value = true
+  // Solo el destinatario (operario) puede marcarlas como vistas
+  if (!isAdmin.value) feedback.markSeen(feedbackList.value)
+}
+
+const fbModalOpen = ref(false)
+const fbComment   = ref('')
+const fbPreviews  = ref([])   // [{ file, url }]
+const fbSending   = ref(false)
+
+function clearPreviews() {
+  fbPreviews.value.forEach(p => URL.revokeObjectURL(p.url))
+  fbPreviews.value = []
+}
+
+function openFeedbackModal() {
+  fbComment.value = ''
+  clearPreviews()
+  fbHistoryOpen.value = false
+  fbModalOpen.value = true
+}
+
+function onEvidence(e) {
+  const files = [...(e.target.files || [])].filter(f => f.type.startsWith('image/'))
+  e.target.value = ''
+  const room = 5 - fbPreviews.value.length
+  files.slice(0, room).forEach(file => fbPreviews.value.push({ file, url: URL.createObjectURL(file) }))
+}
+
+function removeEvidence(i) {
+  URL.revokeObjectURL(fbPreviews.value[i].url)
+  fbPreviews.value.splice(i, 1)
+}
+
+async function sendFeedback() {
+  if (!fbComment.value.trim() || fbSending.value) return
+  fbSending.value = true
+  try {
+    const fb = await feedback.send(order.value.code, fbComment.value.trim(), fbPreviews.value.map(p => p.file))
+    if (fb) {
+      fbModalOpen.value = false
+      clearPreviews()
+      loadFeedback()
+    }
+  } finally {
+    fbSending.value = false
+  }
+}
+
+/* Fotos de la orden (puede tener varias páginas) */
+const photoList    = computed(() => (order.value?.photos?.length ? order.value.photos : (order.value?.photoUrl ? [order.value.photoUrl] : [])).map(p => `${BASE}${p}`))
+const photoIdx     = ref(0)
+const photoFullUrl = computed(() => photoList.value[photoIdx.value] || photoList.value[0] || '')
+watch(() => route.params.code, () => { photoIdx.value = 0 })
+const prevPhoto = () => { photoIdx.value = (photoIdx.value - 1 + photoList.value.length) % photoList.value.length; resetView() }
+const nextPhoto = () => { photoIdx.value = (photoIdx.value + 1) % photoList.value.length; resetView() }
 
 /* Modal de evidencia: zoom + arrastre */
 const photoModalOpen = ref(false)
@@ -188,6 +420,86 @@ const endDrag = () => { dragging.value = false }
 </script>
 
 <style scoped>
+/* Acciones de cabecera */
+.det-actions { display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; }
+
+/* Botón de retroalimentación con aviso de pendientes */
+.fb-btn { position:relative; }
+.fb-btn-count {
+  display:inline-grid; place-items:center; min-width:1.25rem; height:1.25rem; padding:0 0.35rem;
+  border-radius:999px; font-size:0.68rem; font-weight:700;
+  background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent-strong);
+}
+.fb-btn-dot {
+  position:absolute; top:-4px; right:-4px;
+  width:12px; height:12px; border-radius:50%;
+  background:#e5322d; border:2px solid var(--paper);
+  animation:fb-blink 1.2s ease-in-out infinite;
+}
+.fb-btn-dot::after {
+  content:''; position:absolute; inset:-2px; border-radius:50%;
+  border:2px solid #e5322d;
+  animation:fb-ping 1.2s ease-out infinite;
+}
+@keyframes fb-blink { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
+@keyframes fb-ping  { from { transform:scale(1); opacity:0.8; } to { transform:scale(2.2); opacity:0; } }
+@media (prefers-reduced-motion: reduce) {
+  .fb-btn-dot, .fb-btn-dot::after { animation:none; }
+}
+
+/* Retroalimentación: historial (modal) */
+.fb-empty { display:flex; flex-direction:column; align-items:center; gap:0.5rem; padding:1.5rem 0; color:var(--ink-500); font-size:0.85rem; }
+.fb-empty i { font-size:1.5rem; }
+.fb-empty p { margin:0; }
+.fb-list { display:flex; flex-direction:column; gap:0.9rem; }
+.fb-item { border:1px solid var(--line); border-radius:0.75rem; overflow:hidden; background:var(--paper); }
+.fb-item.is-new { border-color:color-mix(in srgb, #e5322d 45%, transparent); box-shadow:0 0 0 3px color-mix(in srgb, #e5322d 10%, transparent); }
+
+.fb-head { display:flex; align-items:center; gap:0.75rem; padding:0.85rem 1rem; border-bottom:1px solid var(--line); }
+.fb-avatar {
+  width:2.25rem; height:2.25rem; min-width:2.25rem; border-radius:50%;
+  display:grid; place-items:center; font-size:0.75rem; font-weight:700;
+  color:#fff; background:linear-gradient(135deg, var(--accent), var(--accent-strong));
+}
+.fb-who { display:flex; flex-direction:column; min-width:0; }
+.fb-author { display:flex; align-items:center; gap:0.45rem; font-size:0.875rem; font-weight:700; color:var(--ink-900); }
+.fb-recipient { font-size:0.75rem; color:var(--ink-500); }
+.fb-recipient strong { color:var(--ink-700); font-weight:600; }
+.fb-new { font-size:0.58rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05rem; color:#fff; background:#e5322d; padding:0.1rem 0.45rem; border-radius:999px; }
+.fb-date { margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; font-size:0.75rem; font-weight:600; color:var(--ink-700); white-space:nowrap; }
+.fb-time { font-size:0.7rem; font-weight:500; color:var(--ink-500); }
+
+.fb-body { padding:0.9rem 1rem 1rem; }
+.fb-label { margin:0 0 0.35rem; font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08rem; color:var(--ink-500); }
+.fb-comment {
+  margin:0; padding:0.7rem 0.85rem; border-radius:0.5rem;
+  background:color-mix(in srgb, var(--accent) 5%, var(--paper)); border-left:3px solid var(--accent);
+  white-space:pre-wrap; word-break:break-word; font-size:0.875rem; line-height:1.55; color:var(--ink-900);
+}
+.fb-grid { display:flex; flex-wrap:wrap; gap:0.5rem; }
+.fb-thumb { position:relative; display:block; width:72px; height:72px; border-radius:0.5rem; overflow:hidden; border:1px solid var(--line); }
+.fb-thumb img { width:100%; height:100%; object-fit:cover; transition:transform 0.15s; }
+.fb-thumb:hover img { transform:scale(1.05); }
+
+.fb-foot { display:flex; align-items:center; gap:0.45rem; padding:0.6rem 1rem; font-size:0.75rem; font-weight:600; border-top:1px solid var(--line); }
+.fb-foot.is-seen    { color:var(--success); background:color-mix(in srgb, var(--success) 6%, transparent); }
+.fb-foot.is-pending { color:#b7770b; background:rgba(225,161,26,0.08); }
+
+@media (max-width: 480px) {
+  .fb-head { flex-wrap:wrap; }
+  .fb-date { margin-left:3rem; flex-direction:row; gap:0.35rem; align-items:center; }
+}
+
+/* Retroalimentación: modal */
+.fb-textarea { margin-top:0.4rem; resize:vertical; font-size:0.875rem; }
+.fb-counter { text-align:right; font-size:0.7rem; color:var(--ink-500); margin-top:0.2rem; }
+.fb-upload-grid { display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.45rem; }
+.fb-thumb-edit { width:80px; height:80px; }
+.fb-remove { position:absolute; top:0.2rem; right:0.2rem; width:1.35rem; height:1.35rem; display:grid; place-items:center; border:none; border-radius:50%; background:rgba(0,0,0,0.6); color:#fff; font-size:0.65rem; cursor:pointer; }
+.fb-add { width:80px; height:80px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.25rem; border:1.5px dashed var(--line); border-radius:0.5rem; color:var(--ink-500); font-size:0.72rem; cursor:pointer; transition:border-color 0.14s, color 0.14s; }
+.fb-add:hover { border-color:var(--accent); color:var(--accent); }
+.fb-add i { font-size:1.1rem; }
+.freq { color:var(--danger); }
 /* 404 */
 .nf-card {
   max-width: 460px; margin: 2rem auto;
@@ -249,6 +561,11 @@ const endDrag = () => { dragging.value = false }
 
 /* Evidencia fotográfica */
 .det-photo-wrap { padding: 1.25rem; background: var(--surface); }
+.det-strip { display:flex; gap:0.5rem; padding:0.75rem 1.25rem; overflow-x:auto; border-top:1px solid var(--line); }
+.det-thumb { position:relative; flex:0 0 auto; width:64px; height:80px; padding:0; border:2px solid transparent; border-radius:0.45rem; overflow:hidden; background:var(--surface); cursor:pointer; }
+.det-thumb.is-active { border-color:var(--accent); }
+.det-thumb img { width:100%; height:100%; object-fit:cover; }
+.det-thumb span { position:absolute; left:0.2rem; bottom:0.2rem; min-width:1.1rem; padding:0 0.25rem; border-radius:999px; background:rgba(0,0,0,0.6); color:#fff; font-size:0.62rem; font-weight:700; text-align:center; }
 .det-photo {
   display: block; margin: 0 auto;
   width: 100%; max-height: 620px; object-fit: contain;

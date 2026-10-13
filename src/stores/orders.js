@@ -20,7 +20,7 @@ export const useOrdersStore = defineStore('orders', () => {
   const lastScannedCode = ref('')
   const notify          = useNotificationsStore()
 
-  const filters = ref({ query: '', sede: 'all', status: 'all', priority: 'all' })
+  const filters = ref({ query: '', sede: 'all', operator: 'all', status: 'all', priority: 'all' })
 
   const sedeMap = computed(() =>
     sedesData.value.reduce((acc, s) => { acc[s.code] = s; return acc }, {})
@@ -50,11 +50,12 @@ export const useOrdersStore = defineStore('orders', () => {
   const filteredOrders = computed(() => {
     const query = normalizeValue(filters.value.query)
     return todayOrders.value.filter(o => {
-      const matchQ    = !query || [o.code, o.product, o.batch, o.operator, o.line].join(' ').toUpperCase().includes(query)
+      const matchQ    = !query || String(o.code).toUpperCase().includes(query)
       const matchSede = filters.value.sede     === 'all' || o.sede     === filters.value.sede
+      const matchOp   = filters.value.operator === 'all' || o.operator === filters.value.operator
       const matchSt   = filters.value.status   === 'all' || o.status   === filters.value.status
       const matchPr   = filters.value.priority === 'all' || o.priority === filters.value.priority
-      return matchQ && matchSede && matchSt && matchPr
+      return matchQ && matchSede && matchOp && matchSt && matchPr
     })
   })
 
@@ -85,6 +86,13 @@ export const useOrdersStore = defineStore('orders', () => {
     const idx = rawOrders.value.findIndex(o => normalizeValue(o.code) === normalizeValue(order.code))
     if (idx >= 0) rawOrders.value[idx] = order
     else rawOrders.value.unshift(order)
+  }
+
+  // Refleja localmente la revisión del admin (sin recargar todas las órdenes)
+  const markLocalReviewed = (code = null) => {
+    rawOrders.value.forEach(o => {
+      if (code === null || normalizeValue(o.code) === normalizeValue(code)) o.pendingReview = false
+    })
   }
 
   // ── API actions ──────────────────────────────────────────────────
@@ -120,11 +128,11 @@ export const useOrdersStore = defineStore('orders', () => {
     }
   }
 
-  async function registerOrder(rawCode, productName, sedeCode = 'BOG', operatorName, photoFile) {
+  async function registerOrder(rawCode, productName, sedeCode = 'BOG', operatorName, photoFiles = [], { confirmDuplicate = false } = {}) {
     const code = normalizeValue(rawCode)
     if (!code) {
-      lastScanMessage.value = 'Ingresa un código de orden válido.'
-      notify.warning('Debes ingresar un codigo de orden.', { title: 'Validacion' })
+      lastScanMessage.value = 'Ingresa una orden de producción válida.'
+      notify.warning('Debes ingresar una orden de producción.', { title: 'Validación' })
       return { ok: false }
     }
     try {
@@ -133,7 +141,8 @@ export const useOrdersStore = defineStore('orders', () => {
       form.append('product', productName?.trim() || 'Sin nombre')
       form.append('sede', sedeCode)
       if (operatorName) form.append('operator', operatorName)
-      if (photoFile) form.append('photo', photoFile)
+      ;(Array.isArray(photoFiles) ? photoFiles : [photoFiles]).filter(Boolean).forEach(f => form.append('photos', f))
+      if (confirmDuplicate) form.append('confirmDuplicate', 'true')
 
       const order = await api.post('/api/orders', form)
       upsertOrder(order)
@@ -146,6 +155,10 @@ export const useOrdersStore = defineStore('orders', () => {
       if (e?.message === 'SESSION_EXPIRED' || e?.code === 'SESSION_EXPIRED') {
         return { ok: false, reason: 'session_expired' }
       }
+      // Orden ya registrada: la vista decide si se reenvía (sin toast de error)
+      if (e?.status === 409 && e.data?.code === 'DUPLICATE') {
+        return { ok: false, reason: 'duplicate', message: e.message, sameUser: e.data.sameUser, existing: e.data.order }
+      }
       lastScanMessage.value = e.message
       notify.error(e.message || 'No fue posible registrar la orden.', { title: 'Error de registro' })
       return { ok: false }
@@ -156,7 +169,7 @@ export const useOrdersStore = defineStore('orders', () => {
     const code = normalizeValue(rawCode)
     if (!code) {
       lastScanMessage.value = 'Ingresa o escanea un código válido.'
-      notify.warning('Debes ingresar o escanear un codigo.', { title: 'Validacion' })
+      notify.warning('Debes ingresar o escanear un codigo.', { title: 'Validación' })
       return { ok: false, reason: 'empty' }
     }
     try {
@@ -181,7 +194,7 @@ export const useOrdersStore = defineStore('orders', () => {
     ordersWithMeta.value.find(o => normalizeValue(o.code) === normalizeValue(code))
 
   const setFilter    = (key, val) => { filters.value[key] = val }
-  const resetFilters = () => { filters.value = { query: '', sede: 'all', status: 'all', priority: 'all' } }
+  const resetFilters = () => { filters.value = { query: '', sede: 'all', operator: 'all', status: 'all', priority: 'all' } }
 
   return {
     availablePriorities, availableStatuses,
@@ -190,7 +203,7 @@ export const useOrdersStore = defineStore('orders', () => {
     lastScanMessage, lastScannedCode,
     orders: ordersWithMeta,
     todayOrders, historicalOrders,
-    resetFilters, scannedOrders,
+    markLocalReviewed, resetFilters, scannedOrders,
     fetchOrders, fetchSedes, scanOrder, registerOrder,
     sedeStats, sedes: sedesData, setFilter, stats,
   }

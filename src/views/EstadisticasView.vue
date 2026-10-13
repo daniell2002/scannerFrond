@@ -24,12 +24,12 @@
         </div>
         <div class="col-6 col-md-3">
           <div class="metric-card p-3 d-flex align-items-center gap-3">
-            <div class="metric-icon" style="background:rgba(46,139,87,0.12);color:var(--success)">
-              <i class="fas fa-qrcode"></i>
+            <div class="metric-icon" style="background:rgba(196,69,54,0.1);color:var(--danger)">
+              <i class="fas fa-bell"></i>
             </div>
             <div>
-              <p class="metric-label mb-1">Escaneadas hoy</p>
-              <p class="metric-value mb-0">{{ kpis.escaneadas }}</p>
+              <p class="metric-label mb-1">Por revisar</p>
+              <p class="metric-value mb-0">{{ kpis.porRevisar }}</p>
             </div>
           </div>
         </div>
@@ -63,10 +63,10 @@
         <div class="col-12 col-md-6">
           <div class="chart-card">
             <div class="chart-card-head">
-              <span class="chart-card-icon"><i class="fas fa-qrcode"></i></span>
+              <span class="chart-card-icon"><i class="fas fa-clipboard-check"></i></span>
               <div>
-                <p class="e-card-title mb-0">Cobertura de escaneo</p>
-                <p class="e-card-sub mb-0">Órdenes escaneadas vs total del día</p>
+                <p class="e-card-title mb-0">Revisión del día</p>
+                <p class="e-card-sub mb-0">Órdenes de hoy revisadas por el administrador</p>
               </div>
             </div>
             <div class="scan-ring-wrap">
@@ -74,23 +74,23 @@
                 <svg viewBox="0 0 120 120" class="ring-svg">
                   <circle cx="60" cy="60" r="46" class="ring-bg"/>
                   <circle cx="60" cy="60" r="46" class="ring-fg"
-                    :stroke-dasharray="`${scanPct * 2.89} 289`"/>
+                    :stroke-dasharray="`${reviewPct * 2.89} 289`"/>
                 </svg>
                 <div class="ring-label">
-                  <span class="ring-num">{{ scanPct }}</span>
+                  <span class="ring-num">{{ reviewPct }}</span>
                   <span class="ring-pct">%</span>
                 </div>
               </div>
             </div>
             <div class="scan-row">
               <div class="scan-item">
-                <span class="scan-n" style="color:var(--success)">{{ kpis.escaneadas }}</span>
-                <span class="scan-l">escaneadas</span>
+                <span class="scan-n" style="color:var(--success)">{{ kpis.revisadas }}</span>
+                <span class="scan-l">revisadas</span>
               </div>
               <div class="scan-sep"></div>
               <div class="scan-item">
-                <span class="scan-n" style="color:var(--ink-500)">{{ kpis.hoy - kpis.escaneadas }}</span>
-                <span class="scan-l">sin escanear</span>
+                <span class="scan-n" style="color:var(--danger)">{{ kpis.porRevisar }}</span>
+                <span class="scan-l">por revisar</span>
               </div>
             </div>
           </div>
@@ -103,7 +103,7 @@
               <span class="chart-card-icon"><i class="fas fa-building"></i></span>
               <div>
                 <p class="e-card-title mb-0">Órdenes del día por sede</p>
-                <p class="e-card-sub mb-0">Distribución de órdenes de hoy</p>
+                <p class="e-card-sub mb-0">Distribución de órdenes de hoy · <i class="fas fa-bell"></i> por revisar</p>
               </div>
             </div>
             <div v-if="!sedeHoy.length" class="empty-msg">Sin órdenes hoy.</div>
@@ -112,15 +112,15 @@
                 <div class="bar-top">
                   <span class="bar-label"><span class="bar-dot" :style="{ background: sedeColor(s.code) }"></span>{{ s.name }}</span>
                   <div class="bar-right">
-                    <span class="bar-scan-badge" v-if="s.escaneadas">
-                      <i class="fas fa-qrcode"></i> {{ s.escaneadas }}
+                    <span class="bar-scan-badge" v-if="s.porRevisar" :title="`${s.porRevisar} por revisar`">
+                      <i class="fas fa-bell"></i> {{ s.porRevisar }}
                     </span>
                     <span class="bar-count">{{ s.total }}</span>
                   </div>
                 </div>
                 <div class="bar-track">
                   <div class="bar-fill" :style="{ width: `${(s.total / maxSede) * 100}%`, background: sedeColor(s.code) }"></div>
-                  <div class="bar-fill-scan" :style="{ width: `${(s.escaneadas / maxSede) * 100}%` }"></div>
+                  <div class="bar-fill-scan" :style="{ width: `${(s.revisadas / maxSede) * 100}%` }"></div>
                 </div>
               </div>
             </div>
@@ -199,7 +199,8 @@ const { orders, todayOrders, historicalOrders, sedes } = storeToRefs(store)
 /* KPIs */
 const kpis = computed(() => ({
   hoy:        todayOrders.value.length,
-  escaneadas: todayOrders.value.filter(o => o.scanCount > 0).length,
+  porRevisar: todayOrders.value.filter(o => o.pendingReview).length,
+  revisadas:  todayOrders.value.filter(o => !o.pendingReview).length,
   historial:  historicalOrders.value.length,
   total:      orders.value.length,
 }))
@@ -208,9 +209,9 @@ const kpis = computed(() => ({
 const sedeHoy = computed(() => {
   const map = {}
   todayOrders.value.forEach(o => {
-    if (!map[o.sede]) map[o.sede] = { code: o.sede, name: o.sedeInfo.name, total: 0, escaneadas: 0 }
+    if (!map[o.sede]) map[o.sede] = { code: o.sede, name: o.sedeInfo.name, total: 0, revisadas: 0, porRevisar: 0 }
     map[o.sede].total++
-    if (o.scanCount > 0) map[o.sede].escaneadas++
+    o.pendingReview ? map[o.sede].porRevisar++ : map[o.sede].revisadas++
   })
   return Object.values(map).sort((a, b) => b.total - a.total)
 })
@@ -236,10 +237,10 @@ const sedeColor = (code) => {
   return SERIES[idx >= 0 ? idx % SERIES.length : 0]
 }
 
-/* Escaneadas vs sin escanear (hoy) */
-const scanPct = computed(() => {
+/* Revisadas vs por revisar (hoy) */
+const reviewPct = computed(() => {
   if (!kpis.value.hoy) return 0
-  return Math.round((kpis.value.escaneadas / kpis.value.hoy) * 100)
+  return Math.round((kpis.value.revisadas / kpis.value.hoy) * 100)
 })
 
 /* Órdenes historial agrupadas por fecha */

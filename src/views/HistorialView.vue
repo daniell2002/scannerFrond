@@ -4,17 +4,38 @@
 
       <!-- Cabecera -->
       <PageHeader
-        :breadcrumb="['Conexa', 'Historial', 'Historial de órdenes']"
+        :breadcrumb="['Conexa', 'Historial', isOperario ? 'Mi historial' : 'Historial de órdenes']"
         icon="fa-history"
-        title="Historial de órdenes"
-        :subtitle="hoy"
+        :title="isOperario ? 'Mi historial' : 'Historial de órdenes'"
+        :subtitle="isOperario ? `Órdenes registradas por ${authStore.user?.name}` : hoy"
       />
+
+      <!-- Resumen personal del operario -->
+      <div v-if="isOperario" class="my-stats">
+        <div class="my-stat">
+          <span class="my-stat-label">Total registradas</span>
+          <span class="my-stat-val">{{ myStats.total }}</span>
+        </div>
+        <div class="my-stat">
+          <span class="my-stat-label">Este mes</span>
+          <span class="my-stat-val">{{ myStats.month }}</span>
+        </div>
+        <div class="my-stat">
+          <span class="my-stat-label">Hoy</span>
+          <span class="my-stat-val">{{ myStats.today }}</span>
+        </div>
+        <div class="my-stat">
+          <span class="my-stat-label">Pendientes de revisión</span>
+          <span class="my-stat-val" :class="{ 'is-warn': myStats.pending }">{{ myStats.pending }}</span>
+        </div>
+      </div>
 
       <!-- Tabla -->
       <div class="table-card">
         <div class="table-card-head">
           <span class="table-card-head-title">
-            <i class="fas fa-archive"></i>Órdenes anteriores
+            <i class="fas" :class="isOperario ? 'fa-user-clock' : 'fa-archive'"></i>
+            {{ isOperario ? 'Mis órdenes' : 'Órdenes anteriores' }}
             <span class="table-card-count">{{ filteredHistoricalOrders.length }}</span>
           </span>
           <div class="table-card-search">
@@ -23,15 +44,24 @@
               <input
                 type="text"
                 class="form-control"
-                placeholder="Buscar por código, producto u operador…"
+                placeholder="Buscar por orden de producción…"
                 v-model="filters.query"
               />
             </div>
             <BaseSelect
               v-if="!isOperario"
-              v-model="filters.sede"
+              :model-value="filters.sede"
+              @update:model-value="onSedeChange"
               :options="[{ value: 'all', label: 'Todas las sedes' }, ...ordersStore.sedes.map(s => ({ value: s.code, label: s.name }))]"
               icon="fa-building"
+              size="sm"
+              style="min-width:180px"
+            />
+            <BaseSelect
+              v-if="isAdmin"
+              v-model="filters.operator"
+              :options="operatorOptions"
+              icon="fa-user"
               size="sm"
               style="min-width:180px"
             />
@@ -43,8 +73,12 @@
           <div class="log-empty-icon">
             <i class="fas fa-clipboard-list"></i>
           </div>
-          <p class="log-empty-title">Sin historial aún</p>
-          <p class="log-empty-sub">Las órdenes de días anteriores aparecen aquí automáticamente.</p>
+          <p class="log-empty-title">{{ isOperario ? 'Aún no has registrado órdenes' : 'Sin historial aún' }}</p>
+          <p class="log-empty-sub">
+            {{ isOperario
+              ? 'Cada orden que registres en el Scanner aparecerá aquí.'
+              : 'Las órdenes de días anteriores aparecen aquí automáticamente.' }}
+          </p>
           <RouterLink to="/scanner" class="btn btn-primary">
             <i class="fas fa-qrcode me-2"></i>Ir al Scanner
           </RouterLink>
@@ -55,11 +89,12 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>Código</th>
-                <th>Producto</th>
-                <th>Sede</th>
-                <th>Operador</th>
+                <th>Orden producción</th>
+                <th>Cliente</th>
+                <th v-if="!isOperario">Sede</th>
+                <th v-if="!isOperario">Operador</th>
                 <th>Fecha</th>
+                <th v-if="isOperario">Revisión</th>
                 <th></th>
               </tr>
             </thead>
@@ -67,14 +102,23 @@
               <tr v-for="item in filteredHistoricalOrders" :key="item.code">
                 <td><span class="code-tag">{{ item.code }}</span></td>
                 <td><span class="h-product">{{ item.product }}</span></td>
-                <td>
+                <td v-if="!isOperario">
                   <span
                     class="sede-chip"
                     :style="{ color: sedeColor(item.sede), backgroundColor: `color-mix(in srgb, ${sedeColor(item.sede)} 16%, transparent)` }"
                   >{{ item.sedeInfo.name }}</span>
                 </td>
-                <td class="cell-muted">{{ item.operator }}</td>
-                <td><span class="h-date">{{ fmtDate(item.scheduledAt) }}</span></td>
+                <td v-if="!isOperario" class="cell-muted">{{ item.operator }}</td>
+                <td>
+                  <span class="h-date">{{ fmtDate(item.scannedAt || item.scheduledAt) }}</span>
+                  <span v-if="isOperario" class="h-time">{{ fmtTime(item.scannedAt || item.scheduledAt) }}</span>
+                </td>
+                <td v-if="isOperario">
+                  <span class="review-chip" :class="item.pendingReview ? 'is-pending' : 'is-done'">
+                    <i class="fas" :class="item.pendingReview ? 'fa-hourglass-half' : 'fa-check'"></i>
+                    {{ item.pendingReview ? 'Pendiente' : 'Revisada' }}
+                  </span>
+                </td>
                 <td>
                   <div class="row-actions">
                     <button
@@ -108,11 +152,14 @@ import { useAuthStore } from '../stores/auth'
 import { generateOrderPdf } from '../utils/orderPdf'
 import BaseSelect from '../components/BaseSelect.vue'
 import PageHeader from '../components/PageHeader.vue'
+import { useResponsables } from '../utils/useResponsables'
+import { isOwnOrder } from '../utils/ownOrders'
 
 const ordersStore = useOrdersStore()
 const authStore    = useAuthStore()
-const { historicalOrders, sedes } = storeToRefs(ordersStore)
+const { historicalOrders, orders, sedes } = storeToRefs(ordersStore)
 const isOperario = computed(() => authStore.user?.role === 'operario')
+const isAdmin    = computed(() => authStore.user?.role === 'admin')
 
 onMounted(() => ordersStore.fetchOrders())
 
@@ -135,14 +182,43 @@ async function generatePdf(order) {
   }
 }
 
-const filters = ref({ query: '', sede: 'all' })
+const filters = ref({ query: '', sede: 'all', operator: 'all' })
+
+const { options: operatorOptions } = useResponsables(
+  historicalOrders, computed(() => filters.value.sede), isAdmin
+)
+
+function onSedeChange(v) {
+  filters.value.sede = v
+  filters.value.operator = 'all'
+}
+
+/* Operario: solo las órdenes que él registró (incluidas las de hoy) */
+const myOrders = computed(() =>
+  orders.value
+    .filter(o => isOwnOrder(o, authStore.user))
+    .sort((a, b) => new Date(b.scannedAt || b.scheduledAt) - new Date(a.scannedAt || a.scheduledAt))
+)
+
+const myStats = computed(() => {
+  const now = new Date()
+  const dateOf = (o) => new Date(o.scannedAt || o.scheduledAt)
+  return {
+    total:   myOrders.value.length,
+    month:   myOrders.value.filter(o => { const d = dateOf(o); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() }).length,
+    today:   myOrders.value.filter(o => dateOf(o).toDateString() === now.toDateString()).length,
+    pending: myOrders.value.filter(o => o.pendingReview).length,
+  }
+})
 
 const filteredHistoricalOrders = computed(() => {
   const query = filters.value.query.trim().toUpperCase()
-  return historicalOrders.value.filter(o => {
-    const matchQ    = !query || [o.code, o.product, o.operator].join(' ').toUpperCase().includes(query)
+  const source = isOperario.value ? myOrders.value : historicalOrders.value
+  return source.filter(o => {
+    const matchQ    = !query || String(o.code).toUpperCase().includes(query)
     const matchSede = filters.value.sede === 'all' || o.sede === filters.value.sede
-    return matchQ && matchSede
+    const matchOp   = filters.value.operator === 'all' || o.operator === filters.value.operator
+    return matchQ && matchSede && matchOp
   })
 })
 
@@ -152,6 +228,9 @@ const hoy = new Date().toLocaleDateString('es-CO', {
 
 const fmtDate = (iso) => new Date(iso).toLocaleDateString('es-CO', {
   day: 'numeric', month: 'short', year: 'numeric',
+})
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString('es-CO', {
+  hour: 'numeric', minute: '2-digit',
 })
 </script>
 
@@ -172,6 +251,25 @@ const fmtDate = (iso) => new Date(iso).toLocaleDateString('es-CO', {
 /* Tabla */
 .h-product { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; display:inline-block; }
 .h-date    { font-size:0.82rem; font-weight:600; color:var(--ink-700); white-space:nowrap; }
+
+.h-time    { display:block; font-size:0.72rem; color:var(--ink-500); margin-top:0.1rem; }
+
+/* Resumen del operario */
+.my-stats { display:grid; grid-template-columns:repeat(4, 1fr); gap:0.75rem; margin-bottom:1rem; }
+.my-stat {
+  display:flex; flex-direction:column; gap:0.25rem;
+  padding:0.9rem 1.1rem; background:var(--paper);
+  border:1px solid var(--line); border-radius:0.65rem; box-shadow:var(--shadow-sm);
+}
+.my-stat-label { font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07rem; color:var(--ink-500); }
+.my-stat-val   { font-family:var(--font-display); font-size:1.5rem; font-weight:700; color:var(--ink-900); font-variant-numeric:tabular-nums; }
+.my-stat-val.is-warn { color:#d08a0e; }
+@media (max-width: 767px) { .my-stats { grid-template-columns:repeat(2, 1fr); } }
+
+.review-chip { display:inline-flex; align-items:center; gap:0.35rem; font-size:0.72rem; font-weight:700; padding:0.25rem 0.65rem; border-radius:999px; white-space:nowrap; }
+.review-chip i { font-size:0.65rem; }
+.review-chip.is-pending { color:#b7770b; background:rgba(225,161,26,0.14); }
+.review-chip.is-done    { color:var(--success); background:color-mix(in srgb, var(--success) 12%, transparent); }
 
 .sede-chip { display:inline-flex; align-items:center; font-size:0.75rem; font-weight:700; padding:0.28rem 0.7rem; border-radius:999px; white-space:nowrap; }
 </style>
