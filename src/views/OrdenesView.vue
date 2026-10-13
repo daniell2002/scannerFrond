@@ -10,7 +10,7 @@
         :subtitle="new Date().toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long' })"
       >
         <template #action>
-          <button class="btn-add-outline" @click="ordersStore.resetFilters()"><i class="fas fa-trash me-2"></i>Limpiar</button>
+          <button class="btn-add-outline" @click="ordersStore.resetFilters()"><i class="fas fa-filter-circle-xmark"></i>Limpiar filtros</button>
         </template>
       </PageHeader>
 
@@ -85,7 +85,7 @@
                 <td v-if="!isOperario">
                   <span
                     class="sede-chip"
-                    :style="{ color: sedeColor(item.sede), backgroundColor: `color-mix(in srgb, ${sedeColor(item.sede)} 16%, transparent)` }"
+                    :style="{ '--dot': sedeColor(item.sede) }"
                   >{{ item.sedeInfo.name }}</span>
                 </td>
                 <td v-if="!isOperario" class="cell-muted">{{ item.operator }}</td>

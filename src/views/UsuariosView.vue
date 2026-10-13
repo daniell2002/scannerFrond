@@ -19,13 +19,23 @@
 
     <template v-else>
       <!-- Resumen -->
-      <div class="us-stats">
-        <div class="us-stat"><span class="us-stat-label">Usuarios</span><span class="us-stat-val">{{ users.length }}</span></div>
-        <div class="us-stat"><span class="us-stat-label">Activos</span><span class="us-stat-val">{{ counts.active }}</span></div>
-        <div class="us-stat"><span class="us-stat-label">Administradores</span><span class="us-stat-val">{{ counts.admins }}</span></div>
-        <div class="us-stat">
-          <span class="us-stat-label">Sin correo</span>
-          <span class="us-stat-val" :class="{ 'is-warn': counts.noEmail }">{{ counts.noEmail }}</span>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-head"><span class="kpi-label">Usuarios</span><i class="fas fa-users kpi-icon"></i></div>
+          <span class="kpi-value">{{ users.length }}</span>
+        </div>
+        <div class="kpi">
+          <div class="kpi-head"><span class="kpi-label">Activos</span><i class="fas fa-user-check kpi-icon"></i></div>
+          <span class="kpi-value">{{ counts.active }}</span>
+        </div>
+        <div class="kpi">
+          <div class="kpi-head"><span class="kpi-label">Administradores</span><i class="fas fa-shield-halved kpi-icon"></i></div>
+          <span class="kpi-value">{{ counts.admins }}</span>
+        </div>
+        <div class="kpi">
+          <div class="kpi-head"><span class="kpi-label">Sin correo</span><i class="fas fa-envelope kpi-icon"></i></div>
+          <span class="kpi-value" :class="{ 'is-warn': counts.noEmail }">{{ counts.noEmail }}</span>
+          <span v-if="counts.noEmail" class="kpi-foot">Agrégales correo para que ingresen con él</span>
         </div>
       </div>
 
@@ -74,7 +84,7 @@
                         <span v-if="u.id === me" class="us-you">Tú</span>
                       </span>
                       <span v-if="u.email" class="us-email">{{ u.email }}</span>
-                      <span v-else class="us-email is-missing"><i class="fas fa-exclamation-circle"></i>Sin correo — ingresa como «{{ u.username }}»</span>
+                      <span v-else class="us-email is-missing" :title="`Ingresa con el usuario «${u.username}»`"><i class="fas fa-exclamation-circle"></i>Sin correo · usuario {{ u.username }}</span>
                     </div>
                   </div>
                 </td>
@@ -612,17 +622,6 @@ function fmtLastLogin(d) {
 </script>
 
 <style scoped>
-/* Resumen */
-.us-stats { display:grid; grid-template-columns:repeat(4, 1fr); gap:0.75rem; margin-bottom:1rem; }
-.us-stat {
-  display:flex; flex-direction:column; gap:0.25rem;
-  padding:0.9rem 1.1rem; background:var(--paper);
-  border:1px solid var(--line); border-radius:0.65rem; box-shadow:var(--shadow-sm);
-}
-.us-stat-label { font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07rem; color:var(--ink-500); }
-.us-stat-val   { font-family:var(--font-display); font-size:1.5rem; font-weight:700; color:var(--ink-900); font-variant-numeric:tabular-nums; }
-.us-stat-val.is-warn { color:#d08a0e; }
-@media (max-width: 767px) { .us-stats { grid-template-columns:repeat(2, 1fr); } }
 
 .search-box { position:relative; flex:1 1 220px; max-width:300px; }
 .search-box-icon { position:absolute; left:0.8rem; top:50%; transform:translateY(-50%); color:var(--ink-500); font-size:0.8rem; pointer-events:none; }
@@ -640,12 +639,12 @@ function fmtLastLogin(d) {
 .us-name  { display:flex; align-items:center; gap:0.4rem; font-weight:700; color:var(--ink-900); font-size:0.875rem; }
 .us-you   { font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05rem; padding:0.1rem 0.4rem; border-radius:999px; background:var(--surface); color:var(--ink-500); }
 .us-email { font-size:0.78rem; color:var(--ink-500); }
-.us-email.is-missing { display:inline-flex; align-items:center; gap:0.3rem; color:#b7770b; }
+.us-email.is-missing { display:inline-flex; align-items:center; gap:0.3rem; color:var(--warning); white-space:nowrap; }
 
 tr.is-inactive td { opacity:0.55; }
 tr.is-inactive td:last-child { opacity:1; }
 
-.cell-strong { font-weight:600; color:var(--ink-900); font-size:0.85rem; }
+.cell-strong { font-weight:600; color:var(--ink-900); font-size:0.85rem; white-space:nowrap; }
 .us-last { white-space:nowrap; font-size:0.8rem; }
 
 .us-mods { display:flex; gap:0.3rem; }

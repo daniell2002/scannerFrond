@@ -14,7 +14,7 @@
             <div>
               <h2 class="left-header-title">Registrar orden</h2>
               <p class="left-header-sub">
-                {{ isOperario ? sedeNombre : 'Conexa · Órdenes de producción' }}
+                {{ isOperario ? sedeNombre : 'Captura el documento y completa los datos' }}
               </p>
             </div>
           </div>
@@ -497,35 +497,34 @@ html.dark .doccam-btn { color:#bcd6f7; }
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 0.75rem;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .left-header {
   display: flex;
   align-items: center;
-  gap: 0.875rem;
+  gap: 0.75rem;
   padding: 1rem 1.25rem;
-  background: linear-gradient(120deg, var(--accent) 0%, var(--accent-strong) 100%);
-  color: #fff;
+  border-bottom: 1px solid var(--line);
 }
 
 .left-header-icon {
   width: 2.25rem;
   height: 2.25rem;
   min-width: 2.25rem;
-  background: rgba(255,255,255,0.2);
-  border: 1px solid rgba(255,255,255,0.3);
   border-radius: 0.5rem;
   display: grid;
   place-items: center;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
-.left-header-title { font-family:var(--font-display); font-size:0.95rem; font-weight:700; margin:0 0 0.1rem; }
-.left-header-sub   { font-size:0.68rem; opacity: 0.75; margin:0; }
+.left-header-title { font-size:1rem; font-weight:700; margin:0; color:var(--ink-900); letter-spacing:-0.01em; }
+.left-header-sub   { font-size:0.78rem; color:var(--ink-500); margin:0.1rem 0 0; }
 
 .left-body {
-  padding: 1.125rem;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
@@ -533,15 +532,16 @@ html.dark .doccam-btn { color:#bcd6f7; }
 
 .scan-alert {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  color: var(--accent-strong);
-  background: rgba(42,120,214,0.07);
-  border: 1px solid rgba(42,120,214,0.18);
+  align-items: flex-start;
+  gap: 0.55rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--ink-700);
+  background: var(--surface);
   border-radius: 0.5rem;
-  padding: 0.6rem 0.875rem;
+  padding: 0.65rem 0.85rem;
 }
+.scan-alert i { color: var(--ink-400); margin-top: 0.15rem; }
 
 /* Resultado de la lectura del código */
 .ocr-status {
@@ -558,11 +558,9 @@ html.dark .doccam-btn { color:#bcd6f7; }
 .field        { display: flex; flex-direction: column; gap: 0.3rem; }
 
 .flabel {
-  font-size: 0.62rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.09rem;
-  color: var(--ink-500);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-700);
   display: flex;
   align-items: center;
   gap: 0.4rem;

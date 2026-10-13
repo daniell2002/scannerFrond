@@ -11,22 +11,22 @@
       />
 
       <!-- Resumen personal del operario -->
-      <div v-if="isOperario" class="my-stats">
-        <div class="my-stat">
-          <span class="my-stat-label">Total registradas</span>
-          <span class="my-stat-val">{{ myStats.total }}</span>
+      <div v-if="isOperario" class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-head"><span class="kpi-label">Total registradas</span><i class="fas fa-database kpi-icon"></i></div>
+          <span class="kpi-value">{{ myStats.total }}</span>
         </div>
-        <div class="my-stat">
-          <span class="my-stat-label">Este mes</span>
-          <span class="my-stat-val">{{ myStats.month }}</span>
+        <div class="kpi">
+          <div class="kpi-head"><span class="kpi-label">Este mes</span><i class="fas fa-calendar kpi-icon"></i></div>
+          <span class="kpi-value">{{ myStats.month }}</span>
         </div>
-        <div class="my-stat">
-          <span class="my-stat-label">Hoy</span>
-          <span class="my-stat-val">{{ myStats.today }}</span>
+        <div class="kpi">
+          <div class="kpi-head"><span class="kpi-label">Hoy</span><i class="fas fa-calendar-day kpi-icon"></i></div>
+          <span class="kpi-value">{{ myStats.today }}</span>
         </div>
-        <div class="my-stat">
-          <span class="my-stat-label">Pendientes de revisión</span>
-          <span class="my-stat-val" :class="{ 'is-warn': myStats.pending }">{{ myStats.pending }}</span>
+        <div class="kpi">
+          <div class="kpi-head"><span class="kpi-label">Pendientes de revisión</span><i class="fas fa-hourglass-half kpi-icon"></i></div>
+          <span class="kpi-value" :class="{ 'is-warn': myStats.pending }">{{ myStats.pending }}</span>
         </div>
       </div>
 
@@ -105,7 +105,7 @@
                 <td v-if="!isOperario">
                   <span
                     class="sede-chip"
-                    :style="{ color: sedeColor(item.sede), backgroundColor: `color-mix(in srgb, ${sedeColor(item.sede)} 16%, transparent)` }"
+                    :style="{ '--dot': sedeColor(item.sede) }"
                   >{{ item.sedeInfo.name }}</span>
                 </td>
                 <td v-if="!isOperario" class="cell-muted">{{ item.operator }}</td>
@@ -254,17 +254,6 @@ const fmtTime = (iso) => new Date(iso).toLocaleTimeString('es-CO', {
 
 .h-time    { display:block; font-size:0.72rem; color:var(--ink-500); margin-top:0.1rem; }
 
-/* Resumen del operario */
-.my-stats { display:grid; grid-template-columns:repeat(4, 1fr); gap:0.75rem; margin-bottom:1rem; }
-.my-stat {
-  display:flex; flex-direction:column; gap:0.25rem;
-  padding:0.9rem 1.1rem; background:var(--paper);
-  border:1px solid var(--line); border-radius:0.65rem; box-shadow:var(--shadow-sm);
-}
-.my-stat-label { font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07rem; color:var(--ink-500); }
-.my-stat-val   { font-family:var(--font-display); font-size:1.5rem; font-weight:700; color:var(--ink-900); font-variant-numeric:tabular-nums; }
-.my-stat-val.is-warn { color:#d08a0e; }
-@media (max-width: 767px) { .my-stats { grid-template-columns:repeat(2, 1fr); } }
 
 .review-chip { display:inline-flex; align-items:center; gap:0.35rem; font-size:0.72rem; font-weight:700; padding:0.25rem 0.65rem; border-radius:999px; white-space:nowrap; }
 .review-chip i { font-size:0.65rem; }

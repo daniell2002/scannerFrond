@@ -1,15 +1,18 @@
 <template>
   <div class="page-wrap">
 
+    <!-- Cargando (entrada directa por enlace) -->
+    <div v-if="!order && !loaded" class="state-loading"><i class="fas fa-spinner fa-spin me-2"></i>Cargando orden…</div>
+
     <!-- 404 -->
-    <div v-if="!order" class="nf-card">
+    <div v-else-if="!order" class="nf-card">
       <div class="nf">
         <div class="nf-icon-wrap"><i class="fas fa-inbox"></i></div>
         <h2 class="nf-title">Orden no encontrada</h2>
-        <p class="nf-sub">Regresa y carga una OP válida desde el Scanner.</p>
-        <RouterLink to="/scanner" class="btn btn-primary">
-          <i class="fas fa-arrow-left me-2"></i>Ir al Scanner
-        </RouterLink>
+        <p class="nf-sub">La orden {{ route.params.code }} no existe o no tienes acceso a ella.</p>
+        <button type="button" class="btn-save" @click="goBack">
+          <i class="fas fa-arrow-left"></i>Volver
+        </button>
       </div>
     </div>
 
@@ -26,7 +29,7 @@
           <div class="det-actions">
             <button
               v-if="isAdmin || feedbackList.length"
-              class="btn-add fb-btn"
+              class="btn-add-outline fb-btn"
               :title="unseenCount ? unseenTitle : 'Ver retroalimentación'"
               @click="openFeedbackHistory"
             >
@@ -34,7 +37,7 @@
               <span v-if="feedbackList.length" class="fb-btn-count">{{ feedbackList.length }}</span>
               <span v-if="unseenCount" class="fb-btn-dot" aria-hidden="true"></span>
             </button>
-            <button class="btn-add" @click="goBack">
+            <button class="btn-add-outline" @click="goBack">
               <i class="fas fa-arrow-left"></i>Volver
             </button>
           </div>
@@ -281,7 +284,7 @@
 
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useOrdersStore } from '../stores/orders'
 import { useReviewsStore } from '../stores/reviews'
@@ -296,7 +299,15 @@ const router = useRouter()
 
 // Vuelve a la vista anterior (Órdenes, Historial…); si se entró directo, a Órdenes
 const goBack = () => window.history.state?.back ? router.back() : router.push('/ordenes')
-const order = computed(() => useOrdersStore().getOrderByCode(route.params.code))
+const ordersStore = useOrdersStore()
+const order = computed(() => ordersStore.getOrderByCode(route.params.code))
+
+// Si se entra directo por enlace, las órdenes aún no están cargadas
+const loaded = ref(ordersStore.orders.length > 0)
+onMounted(async () => {
+  if (!order.value) await ordersStore.fetchOrders()
+  loaded.value = true
+})
 /* Abrir la orden cuenta como revisada (solo admin) */
 const reviews  = useReviewsStore()
 const auth     = useAuthStore()
@@ -528,22 +539,17 @@ const endDrag = () => { dragging.value = false }
   overflow: hidden;
 }
 .det-card-head {
-  display: flex; align-items: center; gap: 0.65rem;
-  padding: 0.85rem 1.1rem;
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.9rem 1.25rem;
   border-bottom: 1px solid var(--line);
 }
 .det-card-head-icon {
-  width: 30px; height: 30px; min-width: 30px;
-  background: var(--accent);
-  border-radius: 0.5rem;
+  width: 1rem; min-width: 1rem;
   display: grid; place-items: center;
-  color: #fff; font-size: 0.75rem;
+  color: var(--ink-400); font-size: 0.85rem;
 }
-.det-card-head-title {
-  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08rem; color: var(--ink-700);
-}
-.det-card-body { padding: 0.25rem 1.1rem; }
+.det-card-head-title { font-size: 0.9rem; font-weight: 600; color: var(--ink-900); }
+.det-card-body { padding: 0.25rem 1.25rem; }
 
 /* Field rows */
 .field-row {

@@ -12,73 +12,94 @@
   <!-- ── Sesión activa: layout unificado con sidebar dinámico ── -->
   <div v-else class="app-layout" :class="{ 'sidebar-open': sidebarOpen }">
 
-    <header class="topbar">
-      <button class="hamburger-btn" @click="sidebarOpen = !sidebarOpen">
-        <i class="fas fa-bars"></i>
-      </button>
-      <RouterLink to="/" class="topbar-brand" title="Ir al inicio">
-        <img src="/img/logo2-01.png" alt="Láminas & Dobleces" class="topbar-logo" />
-        <span class="topbar-brand-title d-none d-sm-inline-flex">
-          <span class="topbar-divider"></span>
-          <small>Órdenes</small>
-        </span>
-      </RouterLink>
-      <div class="topbar-right ms-auto">
-        <span class="topbar-date d-none d-md-inline">
-          <i class="fas fa-calendar-day me-2"></i>{{ today }}
-        </span>
-        <NotificationsBell v-if="auth.user" :key="auth.user.id" />
-        <button class="theme-toggle" @click="toggleDark" :title="darkMode ? 'Modo claro' : 'Modo oscuro'">
-          <i class="fas" :class="darkMode ? 'fa-sun' : 'fa-moon'"></i>
-        </button>
-
-        <div class="user-menu" ref="userMenuRoot">
-          <button class="user-menu-trigger" @click="userMenuOpen = !userMenuOpen">
-            <span class="user-avatar">{{ initials }}</span>
-            <span class="user-menu-name d-none d-sm-inline">{{ auth.user?.name || 'Usuario' }}</span>
-            <i class="fas fa-chevron-down"></i>
-          </button>
-          <Transition name="user-menu-fade">
-            <div v-if="userMenuOpen" class="user-menu-dropdown">
-              <button class="user-menu-item" @click="openSettings">
-                <i class="fas fa-cog"></i>Ajustes
-              </button>
-              <button class="user-menu-item is-danger" @click="doLogout">
-                <i class="fas fa-sign-out-alt"></i>Cerrar sesión
-              </button>
-            </div>
-          </Transition>
-        </div>
-      </div>
-    </header>
-
     <div class="sidebar-overlay" :class="{ 'is-active': sidebarOpen }" @click="sidebarOpen = false"></div>
 
+    <!-- ── Menú lateral ── -->
     <aside class="sidebar">
-      <div class="sidebar-scroll">
-        <RouterLink to="/" exact-active-class="" class="sidebar-dashboard" @click="closeOnMobile">
-          <span class="sidebar-dashboard-icon"><i class="fas fa-th-large"></i></span>
-          <span class="sidebar-dashboard-text">Dashboard</span>
+      <div class="sidebar-brand">
+        <RouterLink to="/" class="sidebar-brand-link" title="Ir al inicio" @click="closeOnMobile">
+          <span class="sidebar-logo-clip">
+            <img src="/img/logo2-01.png" alt="Láminas & Dobleces" class="sidebar-logo" />
+          </span>
         </RouterLink>
+      </div>
 
-        <nav class="sidebar-nav">
-          <span class="sidebar-section-label">Módulos</span>
+      <nav class="sidebar-scroll" aria-label="Navegación principal">
+        <div v-for="section in navSections" :key="section.label" class="sidebar-section">
+          <span class="sidebar-section-label">{{ section.label }}</span>
           <RouterLink
-            v-for="item in sidebarItems"
-            :key="item.key"
+            v-for="item in section.items"
+            :key="item.to"
             :to="item.to"
             class="sidebar-link"
-            active-class="router-link-active"
+            :class="{ 'is-exact-active': item.to === '/' && route.path === '/' }"
+            :active-class="item.to === '/' ? '' : 'router-link-active'"
+            :title="sidebarOpen ? '' : item.label"
             @click="closeOnMobile"
           >
             <span class="sidebar-link-icon"><i class="fas" :class="item.icon"></i></span>
             <span class="sidebar-link-text">{{ item.label }}</span>
           </RouterLink>
-        </nav>
+        </div>
+      </nav>
+
+      <div class="sidebar-foot">
+        <button class="sidebar-collapse" type="button" @click="sidebarOpen = !sidebarOpen">
+          <i class="fas fa-angles-left"></i><span>Contraer menú</span>
+        </button>
       </div>
     </aside>
 
     <div class="main-area">
+      <!-- ── Barra superior ── -->
+      <header class="topbar">
+        <button class="hamburger-btn" aria-label="Abrir menú" @click="sidebarOpen = !sidebarOpen">
+          <i class="fas fa-bars"></i>
+        </button>
+
+        <div class="topbar-crumbs">
+          <span class="crumb-section">{{ currentPage.section }}</span>
+          <i class="fas fa-chevron-right"></i>
+          <strong>{{ currentPage.title }}</strong>
+        </div>
+
+        <div class="topbar-right">
+          <span class="topbar-date d-none d-lg-inline-flex">
+            <i class="far fa-calendar"></i>{{ today }}
+          </span>
+          <NotificationsBell v-if="auth.user" :key="auth.user.id" />
+          <button class="theme-toggle" @click="toggleDark" :title="darkMode ? 'Modo claro' : 'Modo oscuro'">
+            <i class="fas" :class="darkMode ? 'fa-sun' : 'fa-moon'"></i>
+          </button>
+          <span class="topbar-sep"></span>
+
+          <div class="user-menu" ref="userMenuRoot">
+            <button class="user-menu-trigger" @click="userMenuOpen = !userMenuOpen">
+              <span class="user-avatar">{{ initials }}</span>
+              <span class="user-menu-info d-none d-md-flex">
+                <span class="user-menu-name">{{ auth.user?.name || 'Usuario' }}</span>
+                <span class="user-menu-role">{{ roleLabel }}</span>
+              </span>
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <Transition name="user-menu-fade">
+              <div v-if="userMenuOpen" class="user-menu-dropdown">
+                <div class="user-menu-head">
+                  <strong>{{ auth.user?.name }}</strong>
+                  <span>{{ auth.user?.email || roleLabel }}</span>
+                </div>
+                <button class="user-menu-item" @click="openSettings">
+                  <i class="fas fa-user-gear"></i>Ajustes de la cuenta
+                </button>
+                <button class="user-menu-item is-danger" @click="doLogout">
+                  <i class="fas fa-arrow-right-from-bracket"></i>Cerrar sesión
+                </button>
+              </div>
+            </Transition>
+          </div>
+        </div>
+      </header>
+
       <main class="page-main">
         <RouterView />
       </main>
@@ -147,7 +168,8 @@ const router      = useRouter()
 const auth        = useAuthStore()
 const ordersStore = useOrdersStore()
 const notify      = useNotificationsStore()
-const sidebarOpen = ref(window.innerWidth >= DESKTOP_BREAKPOINT)
+// En escritorio se recuerda si el usuario dejó el menú contraído
+const sidebarOpen = ref(window.innerWidth >= DESKTOP_BREAKPOINT && localStorage.getItem('sidebar_collapsed') !== 'true')
 const darkMode    = ref(localStorage.getItem('dark') === 'true')
 
 const userMenuOpen = ref(false)
@@ -193,7 +215,7 @@ function handleResize() {
   const nowDesktop = window.innerWidth >= DESKTOP_BREAKPOINT
   if (nowDesktop !== isDesktop) {
     isDesktop = nowDesktop
-    sidebarOpen.value = nowDesktop
+    sidebarOpen.value = nowDesktop && localStorage.getItem('sidebar_collapsed') !== 'true'
   }
 }
 
@@ -221,6 +243,9 @@ watch(darkMode, v => {
 }, { immediate: true })
 
 const toggleDark    = () => { darkMode.value = !darkMode.value }
+watch(sidebarOpen, v => {
+  if (window.innerWidth >= DESKTOP_BREAKPOINT) localStorage.setItem('sidebar_collapsed', String(!v))
+})
 const closeOnMobile = () => { if (window.innerWidth < DESKTOP_BREAKPOINT) sidebarOpen.value = false }
 
 function doLogout() {
@@ -235,18 +260,51 @@ const today = computed(() =>
   })
 )
 
-// El Dashboard es la página de inicio: siempre visible, sin permiso propio.
-const ALL_MODULES = [
-  { key: 'scanner',      to: '/scanner',       icon: 'fa-qrcode',      label: 'Scanner'       },
-  { key: 'ordenes',      to: '/ordenes',       icon: 'fa-layer-group', label: 'Órdenes'       },
-  { key: 'historial',    to: '/historial',     icon: 'fa-history',     label: 'Historial'     },
-  { key: 'estadisticas', to: '/estadisticas',  icon: 'fa-chart-bar',   label: 'Estadísticas'  },
-  { key: 'sedes',        to: '/sedes',         icon: 'fa-building',    label: 'Sedes'         },
-  { key: 'usuarios',     to: '/usuarios',      icon: 'fa-users',       label: 'Usuarios'      },
+// El Inicio (Dashboard) es la página de entrada: siempre visible, sin permiso propio.
+// Sedes y Usuarios son exclusivos de administradores.
+const NAV = [
+  { label: 'General', items: [
+    { key: null,           to: '/',             icon: 'fa-house',       label: 'Inicio' },
+  ] },
+  { label: 'Operación', items: [
+    { key: 'scanner',      to: '/scanner',      icon: 'fa-qrcode',      label: 'Registrar orden' },
+    { key: 'ordenes',      to: '/ordenes',      icon: 'fa-layer-group', label: 'Órdenes del día' },
+    { key: 'historial',    to: '/historial',    icon: 'fa-clock-rotate-left', label: 'Historial' },
+    { key: 'estadisticas', to: '/estadisticas', icon: 'fa-chart-column', label: 'Estadísticas' },
+  ] },
+  { label: 'Administración', adminOnly: true, items: [
+    { key: 'sedes',        to: '/sedes',        icon: 'fa-building',    label: 'Sedes' },
+    { key: 'usuarios',     to: '/usuarios',     icon: 'fa-users',       label: 'Usuarios' },
+  ] },
 ]
 
-const sidebarItems = computed(() => {
-  if (auth.user?.role === 'admin') return ALL_MODULES
-  return ALL_MODULES.filter(m => (auth.user?.permissions || []).includes(m.key))
+const isAdmin = computed(() => auth.user?.role === 'admin')
+const canSee  = (item) => !item.key || isAdmin.value || (auth.user?.permissions || []).includes(item.key)
+
+const navSections = computed(() =>
+  NAV
+    .filter(s => !s.adminOnly || isAdmin.value)
+    .map(s => ({ ...s, items: s.items.filter(canSee) }))
+    .filter(s => s.items.length)
+)
+
+const roleLabel = computed(() => isAdmin.value ? 'Administrador' : 'Operario')
+
+// Ubicación actual para la barra superior
+const PAGES = {
+  dashboard:      { section: 'General',        title: 'Inicio' },
+  scanner:        { section: 'Operación',      title: 'Registrar orden' },
+  ordenes:        { section: 'Operación',      title: 'Órdenes del día' },
+  historial:      { section: 'Operación',      title: 'Historial' },
+  estadisticas:   { section: 'Operación',      title: 'Estadísticas' },
+  'order-detail': { section: 'Órdenes',        title: 'Detalle de orden' },
+  sedes:          { section: 'Administración', title: 'Sedes' },
+  usuarios:       { section: 'Administración', title: 'Usuarios' },
+}
+const currentPage = computed(() => {
+  const page = PAGES[route.name] || { section: 'Conexa', title: '' }
+  return route.name === 'order-detail' && route.params.code
+    ? { ...page, title: `Orden ${route.params.code}` }
+    : page
 })
 </script>

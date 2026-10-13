@@ -149,7 +149,7 @@ async function handleLogin() {
   flex-direction: column;
   justify-content: center;
   padding: 3rem 3.5rem;
-  background: linear-gradient(160deg, var(--accent) 0%, var(--accent-strong) 100%);
+  background: radial-gradient(120% 80% at 0% 0%, #1a3a66 0%, transparent 60%), linear-gradient(160deg, #13284a 0%, #0f1e33 100%);
   color: #fff;
   position: relative;
   overflow: hidden;
@@ -220,8 +220,8 @@ async function handleLogin() {
   padding: 0.9rem 1.25rem;
   width: fit-content;
   border-radius: 0.9rem;
-  background: linear-gradient(160deg, var(--accent) 0%, var(--accent-strong) 100%);
-  box-shadow: 0 8px 24px rgba(42,120,214,0.25);
+  background: radial-gradient(120% 80% at 0% 0%, #1a3a66 0%, transparent 60%), linear-gradient(160deg, #13284a 0%, #0f1e33 100%);
+  box-shadow: 0 8px 24px rgba(15,30,51,0.25);
 }
 .lc-logo-mobile img { display: block; height: 44px; width: auto; }
 
