@@ -8,24 +8,30 @@ import SedesView        from '../views/SedesView.vue'
 import UsuariosView     from '../views/UsuariosView.vue'
 import ObservacionesView from '../views/ObservacionesView.vue'
 import LoginView        from '../views/LoginView.vue'
+import NoAccessView     from '../views/NoAccessView.vue'
+import { firstAccessible } from '../utils/modules'
 
 export const routes = [
   { path: '/login',         name: 'login',        component: LoginView,        meta: { public: true } },
-  { path: '/',              name: 'dashboard',     component: DashboardView,    meta: {} },
+  { path: '/',              name: 'dashboard',     component: DashboardView,    meta: { permission: 'inicio' } },
   { path: '/scanner',       name: 'scanner',       component: ScannerView,      meta: { permission: 'scanner' } },
   { path: '/ordenes',       name: 'ordenes',       component: OrdenesView,      meta: { permission: 'ordenes' } },
   { path: '/historial',     name: 'historial',     component: HistorialView,    meta: { permission: 'historial' } },
   // Bandeja de observaciones: solo operarios (el admin las ve en cada orden)
-  { path: '/observaciones', name: 'observaciones', component: ObservacionesView, meta: { operarioOnly: true } },
+  { path: '/observaciones', name: 'observaciones', component: ObservacionesView, meta: { permission: 'observaciones', operarioOnly: true } },
   { path: '/estadisticas',  name: 'estadisticas',  component: EstadisticasView, meta: { permission: 'estadisticas' } },
   { path: '/orden/:code',   name: 'order-detail',  component: OrderDetailView,  meta: { permission: 'ordenes' } },
   { path: '/sedes',         name: 'sedes',         component: SedesView,        meta: { permission: 'sedes' } },
   { path: '/usuarios',      name: 'usuarios',      component: UsuariosView,     meta: { permission: 'usuarios' } },
+  // Usuario sin ningún módulo asignado
+  { path: '/sin-acceso',    name: 'sin-acceso',    component: NoAccessView,     meta: {} },
 ]
 
+// Primera página permitida; si no tiene ningún módulo, una pantalla que lo explica
 function firstAllowedRoute(user) {
-  // El Dashboard es la página de inicio para cualquier usuario con sesión (sin permiso propio).
-  return user ? { name: 'dashboard' } : null
+  if (!user) return null
+  const to = firstAccessible(user)
+  return to ? { path: to } : { name: 'sin-acceso' }
 }
 
 export function setupGuard(router) {
@@ -42,13 +48,15 @@ export function setupGuard(router) {
       return dest ?? undefined
     }
 
-    if (to.meta.operarioOnly && user?.role === 'admin') return { name: 'dashboard' }
+    if (to.meta.operarioOnly && user?.role === 'admin') return firstAllowedRoute(user)
 
     // Verificar permiso del módulo (admin siempre pasa)
     if (to.meta.permission && user?.role !== 'admin') {
       const allowed = (user?.permissions || []).includes(to.meta.permission)
       if (!allowed) {
-        return firstAllowedRoute(user) ?? { name: 'login' }
+        const dest = firstAllowedRoute(user)
+        // Evita redirigir a la misma ruta
+        return dest?.path === to.path ? { name: 'sin-acceso' } : dest ?? { name: 'login' }
       }
     }
   })

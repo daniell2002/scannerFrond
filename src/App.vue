@@ -2,7 +2,7 @@
 
   <NotificationsTray />
   <PasswordChangeRequired v-if="!isLogin && auth.user?.mustChangePassword" />
-  <FeedbackAlert v-if="!isLogin && auth.user && auth.user.role !== 'admin' && !auth.user.mustChangePassword" />
+  <FeedbackAlert v-if="!isLogin && auth.user && auth.user.role !== 'admin' && auth.hasPermission('observaciones') && !auth.user.mustChangePassword" />
 
   <!-- ── Login: sin layout ── -->
   <div v-if="isLogin">
@@ -155,7 +155,7 @@ import { useAuthStore } from './stores/auth'
 import { useOrdersStore } from './stores/orders'
 import { useNotificationsStore } from './stores/notifications'
 import { useFeedbackStore } from './stores/feedback'
-import { NAV_SECTIONS } from './utils/modules'
+import { MODULE_GROUPS, canAccess } from './utils/modules'
 import { api } from './api'
 import NotificationsTray from './components/NotificationsTray.vue'
 import NotificationsBell from './components/NotificationsBell.vue'
@@ -264,24 +264,16 @@ const today = computed(() =>
   })
 )
 
-// El Inicio (Dashboard) es la página de entrada: siempre visible, sin permiso propio.
-// Sedes y Usuarios son exclusivos de administradores.
-const NAV = NAV_SECTIONS
-
+// Menú: los grupos de utils/modules.js filtrados por los permisos del usuario
 const isAdmin = computed(() => auth.user?.role === 'admin')
-const canSee  = (item) => {
-  if (item.operarioOnly) return !isAdmin.value
-  return !item.key || isAdmin.value || (auth.user?.permissions || []).includes(item.key)
-}
 
 // Contador junto a un elemento del menú (observaciones sin leer)
 const badgeFor = (item) => item.badge === 'feedback' ? feedbackStore.unseen : 0
 
 const navSections = computed(() =>
-  NAV
-    .filter(s => !s.adminOnly || isAdmin.value)
-    .map(s => ({ ...s, items: s.items.filter(canSee) }))
-    .filter(s => s.items.length)
+  MODULE_GROUPS
+    .map(g => ({ label: g.label, items: g.modules.filter(m => canAccess(auth.user, m)) }))
+    .filter(g => g.items.length)
 )
 
 const roleLabel = computed(() => isAdmin.value ? 'Administrador' : 'Operario')
@@ -297,6 +289,7 @@ const PAGES = {
   sedes:          { section: 'Administración', title: 'Sedes' },
   usuarios:       { section: 'Administración', title: 'Usuarios' },
   observaciones:  { section: 'Operación',      title: 'Observaciones' },
+  'sin-acceso':   { section: 'Cuenta',         title: 'Sin acceso' },
 }
 const currentPage = computed(() => {
   const page = PAGES[route.name] || { section: 'Conexa', title: '' }

@@ -33,7 +33,7 @@
         <span class="kpi-value" :class="{ 'is-warn': stats.pending }">{{ stats.pending }}</span>
         <span class="kpi-foot">{{ stats.pending ? 'Esperando al administrador' : 'Todas revisadas' }}</span>
       </div>
-      <RouterLink to="/observaciones" class="kpi kpi-link">
+      <RouterLink v-if="canObs" to="/observaciones" class="kpi kpi-link">
         <div class="kpi-head"><span class="kpi-label">Observaciones por atender</span><i class="fas fa-comment-dots kpi-icon"></i></div>
         <span class="kpi-value" :class="{ 'is-bad': feedback.openCount }">{{ feedback.openCount }}</span>
         <span class="kpi-foot">
@@ -42,9 +42,14 @@
           <template v-else>Nada pendiente</template>
         </span>
       </RouterLink>
+      <div v-else class="kpi">
+        <div class="kpi-head"><span class="kpi-label">Total registradas</span><i class="fas fa-database kpi-icon"></i></div>
+        <span class="kpi-value">{{ stats.total }}</span>
+        <span class="kpi-foot">Desde que usas el sistema</span>
+      </div>
     </div>
 
-    <div class="op-grid">
+    <div class="op-grid" :class="{ 'is-single': !canObs }">
 
       <!-- Mis últimas órdenes -->
       <section class="panel">
@@ -88,7 +93,7 @@
       </section>
 
       <!-- Observaciones abiertas -->
-      <section class="panel">
+      <section v-if="canObs" class="panel">
         <header class="panel-head">
           <div>
             <h2 class="panel-title">Observaciones por atender</h2>
@@ -139,11 +144,12 @@ const { orders, sedes } = storeToRefs(ordersStore)
 
 onMounted(() => {
   ordersStore.fetchOrders()
-  feedback.fetchMine()
+  if (canObs.value) feedback.fetchMine()
 })
 
 const canScan = computed(() => auth.hasPermission('scanner'))
 const canOpen = computed(() => auth.hasPermission('ordenes'))
+const canObs  = computed(() => auth.hasPermission('observaciones'))
 
 const firstName = computed(() => (auth.user?.name || 'operario').split(' ')[0])
 const sedeName  = computed(() => sedes.value.find(s => s.code === auth.user?.sede)?.name || auth.user?.sede || 'Sin sede')
@@ -212,6 +218,7 @@ function fmtWhen(iso) {
 
 .op-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 1rem; align-items: start; }
 @media (max-width: 1099.98px) { .op-grid { grid-template-columns: 1fr; } }
+.op-grid.is-single { grid-template-columns: 1fr; }
 
 .is-clickable { cursor: pointer; }
 

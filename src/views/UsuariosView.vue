@@ -117,16 +117,16 @@
                 <td class="cell-muted us-last">{{ fmtLastLogin(u.lastLoginAt) }}</td>
                 <td>
                   <div class="row-actions">
-                    <button class="btn-icon btn-edit" @click="openEdit(u)" title="Editar usuario">
+                    <button class="btn-icon btn-edit" :disabled="!canManage(u)" @click="openEdit(u)" :title="canManage(u) ? 'Editar usuario' : 'Solo un administrador puede editar esta cuenta'">
                       <i class="fas fa-pen"></i>
                     </button>
-                    <button class="btn-icon btn-warn" @click="askReset(u)" title="Restablecer contraseña">
+                    <button class="btn-icon btn-warn" :disabled="!canManage(u)" @click="askReset(u)" title="Restablecer contraseña">
                       <i class="fas fa-key"></i>
                     </button>
                     <button
                       class="btn-icon"
                       :class="u.active ? 'btn-off' : 'btn-on'"
-                      :disabled="u.id === me"
+                      :disabled="u.id === me || !canManage(u)"
                       :title="u.id === me ? 'No puedes desactivar tu propia cuenta' : u.active ? 'Desactivar acceso' : 'Reactivar acceso'"
                       @click="askToggle(u)"
                     >
@@ -134,7 +134,7 @@
                     </button>
                     <button
                       class="btn-icon btn-del"
-                      :disabled="u.id === me"
+                      :disabled="u.id === me || !canManage(u)"
                       :title="u.id === me ? 'No puedes eliminar tu propia cuenta' : 'Eliminar usuario'"
                       @click="askDelete(u)"
                     >
@@ -177,6 +177,16 @@
             <input v-model="form.email" type="email" class="mf-inp" placeholder="juan.perez@empresa.com" autocomplete="off" />
           </div>
           <span class="mf-hint">Con este correo ingresará al sistema.</span>
+        </div>
+        <div v-if="form.role === 'operario'" class="mf-field">
+          <label class="mf-label">Sede asignada <span class="mf-req">*</span></label>
+          <BaseSelect
+            v-model="form.sede"
+            :options="sedeOptions"
+            icon="fa-building"
+            placeholder="Selecciona una sede…"
+          />
+          <span class="mf-hint">{{ isAdmin ? 'Solo verá las órdenes de esta sede.' : 'Solo puedes asignar operarios a tu sede.' }}</span>
         </div>
 
         <!-- Crear: contraseña inicial -->
@@ -232,7 +242,7 @@
         <p class="us-section">Rol</p>
         <div class="uf-roles">
           <button
-            v-for="opt in roleOptions" :key="opt.value"
+            v-for="opt in visibleRoles" :key="opt.value"
             type="button"
             class="role-card"
             :class="{ 'is-active': form.role === opt.value }"
@@ -249,25 +259,24 @@
         </div>
 
         <template v-if="form.role === 'operario'">
-          <p class="us-section">Sede y módulos</p>
-          <div class="mf-field">
-            <label class="mf-label">Sede asignada <span class="mf-req">*</span></label>
-            <BaseSelect
-              v-model="form.sede"
-              :options="sedes.map(s => ({ value: s.code, label: `${s.name} — ${s.city}` }))"
-              icon="fa-building"
-              placeholder="Selecciona una sede…"
-            />
-            <span class="mf-hint">Solo verá las órdenes de esta sede.</span>
+          <div class="uf-mods-head">
+            <p class="us-section">Módulos habilitados</p>
+            <span class="uf-mods-actions">
+              <button type="button" @click="setAllPermissions(true)">Todos</button>
+              <span>·</span>
+              <button type="button" @click="setAllPermissions(false)">Ninguno</button>
+            </span>
           </div>
-          <div class="mf-field">
-            <label class="mf-label">Módulos habilitados</label>
+          <div v-for="g in MODULE_GROUPS" :key="g.label" class="uf-group">
+            <span class="uf-group-label">{{ g.label }}</span>
             <div class="uf-mods">
               <button
-                v-for="mod in MODULES" :key="mod.key"
+                v-for="mod in g.modules" :key="mod.key"
                 type="button"
                 class="uf-mod"
-                :class="{ 'is-active': form.permissions.includes(mod.key) }"
+                :class="{ 'is-active': form.permissions.includes(mod.key), 'is-locked': !canGrant(mod.key) }"
+                :disabled="!canGrant(mod.key)"
+                :title="canGrant(mod.key) ? mod.desc : 'No puedes otorgar un módulo que tú no tienes'"
                 @click="togglePermission(mod.key)"
               >
                 <span class="uf-mod-icon"><i class="fas" :class="mod.icon"></i></span>
@@ -275,16 +284,17 @@
                   <span class="uf-mod-name">{{ mod.label }}</span>
                   <span class="uf-mod-desc">{{ mod.desc }}</span>
                 </span>
-                <span class="uf-mod-check"><i class="fas fa-check"></i></span>
+                <span class="uf-mod-check"><i class="fas" :class="canGrant(mod.key) ? 'fa-check' : 'fa-lock'"></i></span>
               </button>
             </div>
-            <div class="uf-always">
-              <span class="uf-always-label"><i class="fas fa-lock"></i>Siempre incluidos:</span>
-              <span v-for="m in ALWAYS" :key="m.to" class="uf-always-chip" :title="m.desc">
-                <i class="fas" :class="m.icon"></i>{{ m.label }}
-              </span>
-            </div>
           </div>
+          <p v-if="form.permissions.includes('usuarios')" class="uf-warn">
+            <i class="fas fa-triangle-exclamation"></i>
+            Con <strong>&nbsp;Usuarios&nbsp;</strong> podrá crear y editar operarios de su sede, sin poder dar más módulos de los que tiene.
+          </p>
+          <p v-else-if="!form.permissions.length" class="uf-warn">
+            <i class="fas fa-triangle-exclamation"></i>Sin módulos no podrá usar el sistema.
+          </p>
         </template>
 
         <div v-else class="uf-admin-note">
@@ -366,7 +376,7 @@ import BaseModal from '../components/BaseModal.vue'
 import BaseSelect from '../components/BaseSelect.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PasswordStrength from '../components/PasswordStrength.vue'
-import { PERMISSION_MODULES, ALWAYS_MODULES } from '../utils/modules'
+import { MODULE_GROUPS, ALL_MODULES, DEFAULT_OPERARIO_PERMISSIONS, moduleByKey } from '../utils/modules'
 
 const users   = ref([])
 const sedes   = ref([])
@@ -376,17 +386,30 @@ const notify  = useNotificationsStore()
 const auth    = useAuthStore()
 const me      = computed(() => auth.user?.id)
 
+const visibleRoles = computed(() => roleOptions.filter(r => r.value !== 'admin' || isAdmin.value))
 const roleOptions = [
   { value: 'operario', label: 'Operario',      desc: 'Registra órdenes de su sede',  icon: 'fa-user' },
   { value: 'admin',    label: 'Administrador', desc: 'Acceso completo al sistema',   icon: 'fa-shield-alt' },
 ]
 
-// Mismas claves que MODULES en el backend (sedes/usuarios son exclusivos de admin)
 // Misma definición que el menú lateral (utils/modules.js)
-const MODULES = PERMISSION_MODULES
-const ALWAYS  = ALWAYS_MODULES
-const moduleLabel = (k) => MODULES.find(m => m.key === k)?.label || k
-const moduleIcon  = (k) => MODULES.find(m => m.key === k)?.icon || 'fa-puzzle-piece'
+const moduleLabel = (k) => moduleByKey(k)?.label || k
+const moduleIcon  = (k) => moduleByKey(k)?.icon || 'fa-puzzle-piece'
+
+/* Delegación: quien gestiona usuarios sin ser admin solo maneja operarios de su
+   sede y solo otorga módulos que él mismo tiene (el backend lo valida igual). */
+const isAdmin  = computed(() => auth.user?.role === 'admin')
+const canGrant = (key) => isAdmin.value || (auth.user?.permissions || []).includes(key)
+const canManage = (u) => isAdmin.value || (u.role !== 'admin' && u.sede === auth.user?.sede)
+const sedeOptions = computed(() => sedes.value
+  .filter(s => isAdmin.value || s.code === auth.user?.sede)
+  .map(s => ({ value: s.code, label: `${s.name} — ${s.city}` })))
+
+function setAllPermissions(on) {
+  form.value.permissions = on
+    ? ALL_MODULES.map(m => m.key).filter(k => canGrant(k) || form.value.permissions.includes(k))
+    : form.value.permissions.filter(k => !canGrant(k))
+}
 
 onMounted(async () => {
   try {
@@ -442,8 +465,9 @@ const saving     = ref(false)
 const modalError = ref('')
 const showPass   = ref(false)
 const emptyForm  = () => ({
-  name: '', email: '', role: 'operario', sede: '',
-  permissions: ['scanner', 'ordenes', 'historial'],
+  name: '', email: '', role: 'operario',
+  permissions: DEFAULT_OPERARIO_PERMISSIONS.filter(k => canGrant(k)),
+  sede: isAdmin.value ? '' : (auth.user?.sede || ''),
   passwordMode: 'auto', password: '',
 })
 const form = ref(emptyForm())
@@ -710,11 +734,15 @@ tr.is-inactive td:last-child { opacity:1; }
 .uf-mod-body { flex:1; min-width:0; display:flex; flex-direction:column; }
 .uf-mod-name { font-size:0.82rem; font-weight:700; color:var(--ink-900); }
 .uf-mod-desc { font-size:0.7rem; color:var(--ink-500); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.uf-always { display:flex; align-items:center; flex-wrap:wrap; gap:0.4rem; margin-top:0.15rem; }
-.uf-always-label { display:inline-flex; align-items:center; gap:0.35rem; font-size:0.75rem; color:var(--ink-500); }
-.uf-always-label i { font-size:0.65rem; }
-.uf-always-chip { display:inline-flex; align-items:center; gap:0.35rem; padding:0.2rem 0.55rem; border-radius:999px; font-size:0.74rem; font-weight:500; color:var(--ink-700); background:var(--surface); border:1px solid var(--line); }
-.uf-always-chip i { font-size:0.68rem; color:var(--ink-400); }
+.uf-mods-head { display:flex; align-items:center; justify-content:space-between; gap:0.5rem; }
+.uf-mods-head .us-section { flex:1; }
+.uf-mods-actions { display:inline-flex; align-items:center; gap:0.35rem; margin-top:0.35rem; font-size:0.75rem; color:var(--ink-400); }
+.uf-mods-actions button { border:none; background:none; padding:0; font-family:var(--font-body); font-size:0.75rem; font-weight:600; color:var(--accent); cursor:pointer; }
+.uf-mods-actions button:hover { text-decoration:underline; }
+.uf-group { display:flex; flex-direction:column; gap:0.35rem; }
+.uf-group-label { font-size:0.7rem; font-weight:600; color:var(--ink-500); }
+.uf-mod.is-locked { opacity:0.5; cursor:not-allowed; }
+.uf-warn { display:flex; align-items:center; gap:0.45rem; margin:0; padding:0.55rem 0.75rem; border-radius:0.5rem; font-size:0.76rem; line-height:1.4; color:var(--warning); background:color-mix(in srgb, var(--warning) 9%, transparent); }
 .uf-mod-check {
   width:1.1rem; height:1.1rem; min-width:1.1rem; border-radius:0.3rem; display:grid; place-items:center;
   font-size:0.55rem; color:transparent; border:1.5px solid var(--ink-300); transition:all 0.14s;

@@ -145,7 +145,9 @@ function onClickOutside(e) {
 }
 
 onMounted(() => {
-  isAdmin.value ? reviews.start() : feedback.start()
+  // Sin el módulo de observaciones el operario no recibe retroalimentación
+  if (isAdmin.value) reviews.start()
+  else if (auth.hasPermission('observaciones')) feedback.start()
   document.addEventListener('mousedown', onClickOutside)
 })
 onBeforeUnmount(() => {
