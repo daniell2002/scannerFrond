@@ -155,6 +155,7 @@ import { useAuthStore } from './stores/auth'
 import { useOrdersStore } from './stores/orders'
 import { useNotificationsStore } from './stores/notifications'
 import { useFeedbackStore } from './stores/feedback'
+import { NAV_SECTIONS } from './utils/modules'
 import { api } from './api'
 import NotificationsTray from './components/NotificationsTray.vue'
 import NotificationsBell from './components/NotificationsBell.vue'
@@ -265,22 +266,7 @@ const today = computed(() =>
 
 // El Inicio (Dashboard) es la página de entrada: siempre visible, sin permiso propio.
 // Sedes y Usuarios son exclusivos de administradores.
-const NAV = [
-  { label: 'General', items: [
-    { key: null,           to: '/',             icon: 'fa-house',       label: 'Inicio' },
-  ] },
-  { label: 'Operación', items: [
-    { key: 'scanner',      to: '/scanner',      icon: 'fa-qrcode',      label: 'Registrar orden' },
-    { key: 'ordenes',      to: '/ordenes',      icon: 'fa-layer-group', label: 'Órdenes del día' },
-    { key: null,           to: '/observaciones', icon: 'fa-comment-dots', label: 'Observaciones', operarioOnly: true, badge: 'feedback' },
-    { key: 'historial',    to: '/historial',    icon: 'fa-clock-rotate-left', label: 'Historial' },
-    { key: 'estadisticas', to: '/estadisticas', icon: 'fa-chart-column', label: 'Estadísticas' },
-  ] },
-  { label: 'Administración', adminOnly: true, items: [
-    { key: 'sedes',        to: '/sedes',        icon: 'fa-building',    label: 'Sedes' },
-    { key: 'usuarios',     to: '/usuarios',     icon: 'fa-users',       label: 'Usuarios' },
-  ] },
-]
+const NAV = NAV_SECTIONS
 
 const isAdmin = computed(() => auth.user?.role === 'admin')
 const canSee  = (item) => {
