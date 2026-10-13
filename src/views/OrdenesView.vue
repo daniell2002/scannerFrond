@@ -74,7 +74,7 @@
                 <th v-if="!isOperario">Sede</th>
                 <th v-if="!isOperario">Operador</th>
                 <th>Hora</th>
-                <th v-if="isOperario">Revisión</th>
+                <th v-if="isOperario">Estado</th>
                 <th></th>
               </tr>
             </thead>
@@ -91,10 +91,7 @@
                 <td v-if="!isOperario" class="cell-muted">{{ item.operator }}</td>
                 <td><span class="ord-time">{{ fmtTime(item.scannedAt || item.scheduledAt) }}</span></td>
                 <td v-if="isOperario">
-                  <span class="review-chip" :class="item.pendingReview ? 'is-pending' : 'is-done'">
-                    <i class="fas" :class="item.pendingReview ? 'fa-hourglass-half' : 'fa-check'"></i>
-                    {{ item.pendingReview ? 'Pendiente' : 'Revisada' }}
-                  </span>
+                  <OrderStatus :order="item" />
                 </td>
                 <td>
                   <div class="row-actions">
@@ -131,6 +128,7 @@ import BaseSelect from '../components/BaseSelect.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { useResponsables } from '../utils/useResponsables'
 import { isOwnOrder } from '../utils/ownOrders'
+import OrderStatus from '../components/OrderStatus.vue'
 
 const ordersStore = useOrdersStore()
 const authStore   = useAuthStore()
@@ -199,10 +197,6 @@ async function generatePdf(order) {
 
 .table-empty .btn-save { text-decoration:none; }
 
-.review-chip { display:inline-flex; align-items:center; gap:0.35rem; font-size:0.72rem; font-weight:700; padding:0.25rem 0.65rem; border-radius:999px; white-space:nowrap; }
-.review-chip i { font-size:0.65rem; }
-.review-chip.is-pending { color:#b7770b; background:rgba(225,161,26,0.14); }
-.review-chip.is-done    { color:var(--success); background:color-mix(in srgb, var(--success) 12%, transparent); }
 
 .sede-chip { display:inline-flex; align-items:center; font-size:0.75rem; font-weight:700; padding:0.28rem 0.7rem; border-radius:999px; white-space:nowrap; }
 </style>

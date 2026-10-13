@@ -39,6 +39,7 @@
           >
             <span class="sidebar-link-icon"><i class="fas" :class="item.icon"></i></span>
             <span class="sidebar-link-text">{{ item.label }}</span>
+            <span v-if="badgeFor(item)" class="sidebar-badge">{{ badgeFor(item) > 99 ? '99+' : badgeFor(item) }}</span>
           </RouterLink>
         </div>
       </nav>
@@ -153,6 +154,7 @@ import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { useOrdersStore } from './stores/orders'
 import { useNotificationsStore } from './stores/notifications'
+import { useFeedbackStore } from './stores/feedback'
 import { api } from './api'
 import NotificationsTray from './components/NotificationsTray.vue'
 import NotificationsBell from './components/NotificationsBell.vue'
@@ -168,6 +170,7 @@ const router      = useRouter()
 const auth        = useAuthStore()
 const ordersStore = useOrdersStore()
 const notify      = useNotificationsStore()
+const feedbackStore = useFeedbackStore()
 // En escritorio se recuerda si el usuario dejó el menú contraído
 const sidebarOpen = ref(window.innerWidth >= DESKTOP_BREAKPOINT && localStorage.getItem('sidebar_collapsed') !== 'true')
 const darkMode    = ref(localStorage.getItem('dark') === 'true')
@@ -269,6 +272,7 @@ const NAV = [
   { label: 'Operación', items: [
     { key: 'scanner',      to: '/scanner',      icon: 'fa-qrcode',      label: 'Registrar orden' },
     { key: 'ordenes',      to: '/ordenes',      icon: 'fa-layer-group', label: 'Órdenes del día' },
+    { key: null,           to: '/observaciones', icon: 'fa-comment-dots', label: 'Observaciones', operarioOnly: true, badge: 'feedback' },
     { key: 'historial',    to: '/historial',    icon: 'fa-clock-rotate-left', label: 'Historial' },
     { key: 'estadisticas', to: '/estadisticas', icon: 'fa-chart-column', label: 'Estadísticas' },
   ] },
@@ -279,7 +283,13 @@ const NAV = [
 ]
 
 const isAdmin = computed(() => auth.user?.role === 'admin')
-const canSee  = (item) => !item.key || isAdmin.value || (auth.user?.permissions || []).includes(item.key)
+const canSee  = (item) => {
+  if (item.operarioOnly) return !isAdmin.value
+  return !item.key || isAdmin.value || (auth.user?.permissions || []).includes(item.key)
+}
+
+// Contador junto a un elemento del menú (observaciones sin leer)
+const badgeFor = (item) => item.badge === 'feedback' ? feedbackStore.unseen : 0
 
 const navSections = computed(() =>
   NAV
@@ -300,6 +310,7 @@ const PAGES = {
   'order-detail': { section: 'Órdenes',        title: 'Detalle de orden' },
   sedes:          { section: 'Administración', title: 'Sedes' },
   usuarios:       { section: 'Administración', title: 'Usuarios' },
+  observaciones:  { section: 'Operación',      title: 'Observaciones' },
 }
 const currentPage = computed(() => {
   const page = PAGES[route.name] || { section: 'Conexa', title: '' }

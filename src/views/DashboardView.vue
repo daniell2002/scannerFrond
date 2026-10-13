@@ -1,5 +1,8 @@
 <template>
-  <div class="page-wrap">
+  <!-- El operario tiene su propio inicio, centrado en su trabajo del día -->
+  <OperarioHome v-if="auth.user?.role === 'operario'" />
+
+  <div v-else class="page-wrap">
 
     <PageHeader
       :title="`Hola, ${firstName}`"
@@ -126,13 +129,14 @@ import { RouterLink, useRouter } from 'vue-router'
 import { useOrdersStore } from '../stores/orders'
 import { useAuthStore } from '../stores/auth'
 import PageHeader from '../components/PageHeader.vue'
+import OperarioHome from '../components/OperarioHome.vue'
 
 const ordersStore = useOrdersStore()
 const auth        = useAuthStore()
 const router      = useRouter()
 const { todayOrders, orders, sedes } = storeToRefs(ordersStore)
 
-onMounted(() => ordersStore.fetchOrders())
+onMounted(() => { if (auth.user?.role !== 'operario') ordersStore.fetchOrders() })
 
 const firstName = computed(() => (auth.user?.name || 'usuario').split(' ')[0])
 

@@ -6,6 +6,7 @@ import EstadisticasView from '../views/EstadisticasView.vue'
 import OrderDetailView  from '../views/OrderDetailView.vue'
 import SedesView        from '../views/SedesView.vue'
 import UsuariosView     from '../views/UsuariosView.vue'
+import ObservacionesView from '../views/ObservacionesView.vue'
 import LoginView        from '../views/LoginView.vue'
 
 export const routes = [
@@ -14,6 +15,8 @@ export const routes = [
   { path: '/scanner',       name: 'scanner',       component: ScannerView,      meta: { permission: 'scanner' } },
   { path: '/ordenes',       name: 'ordenes',       component: OrdenesView,      meta: { permission: 'ordenes' } },
   { path: '/historial',     name: 'historial',     component: HistorialView,    meta: { permission: 'historial' } },
+  // Bandeja de observaciones: solo operarios (el admin las ve en cada orden)
+  { path: '/observaciones', name: 'observaciones', component: ObservacionesView, meta: { operarioOnly: true } },
   { path: '/estadisticas',  name: 'estadisticas',  component: EstadisticasView, meta: { permission: 'estadisticas' } },
   { path: '/orden/:code',   name: 'order-detail',  component: OrderDetailView,  meta: { permission: 'ordenes' } },
   { path: '/sedes',         name: 'sedes',         component: SedesView,        meta: { permission: 'sedes' } },
@@ -38,6 +41,8 @@ export function setupGuard(router) {
       const dest = firstAllowedRoute(user)
       return dest ?? undefined
     }
+
+    if (to.meta.operarioOnly && user?.role === 'admin') return { name: 'dashboard' }
 
     // Verificar permiso del módulo (admin siempre pasa)
     if (to.meta.permission && user?.role !== 'admin') {

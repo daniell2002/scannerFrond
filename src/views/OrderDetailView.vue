@@ -185,11 +185,14 @@
           </template>
         </div>
 
-        <!-- Estado de lectura -->
-        <footer class="fb-foot" :class="f.seenAt ? 'is-seen' : 'is-pending'">
-          <i class="fas" :class="f.seenAt ? 'fa-check-double' : 'fa-clock'"></i>
-          <span v-if="f.seenAt">
-            Vista por {{ f.recipientName }} el {{ fmtFbDate(f.seenAt) }} a las {{ fmtFbTime(f.seenAt) }}
+        <!-- Estado: corregida > vista > sin ver -->
+        <footer class="fb-foot" :class="f.resolvedAt ? 'is-resolved' : f.seenAt ? 'is-seen' : 'is-pending'">
+          <i class="fas" :class="f.resolvedAt ? 'fa-circle-check' : f.seenAt ? 'fa-check-double' : 'fa-clock'"></i>
+          <span v-if="f.resolvedAt">
+            Corregida por {{ f.recipientName }} el {{ fmtFbDate(f.resolvedAt) }} a las {{ fmtFbTime(f.resolvedAt) }}
+          </span>
+          <span v-else-if="f.seenAt">
+            Vista por {{ f.recipientName }} el {{ fmtFbDate(f.seenAt) }} a las {{ fmtFbTime(f.seenAt) }} · aún sin corregir
           </span>
           <span v-else>{{ f.recipientName || 'El operario' }} aún no la ha visto</span>
         </footer>
@@ -495,6 +498,7 @@ const endDrag = () => { dragging.value = false }
 .fb-foot { display:flex; align-items:center; gap:0.45rem; padding:0.6rem 1rem; font-size:0.75rem; font-weight:600; border-top:1px solid var(--line); }
 .fb-foot.is-seen    { color:var(--success); background:color-mix(in srgb, var(--success) 6%, transparent); }
 .fb-foot.is-pending { color:#b7770b; background:rgba(225,161,26,0.08); }
+.fb-foot.is-resolved { color:var(--accent-strong); background:var(--accent-soft); }
 
 @media (max-width: 480px) {
   .fb-head { flex-wrap:wrap; }

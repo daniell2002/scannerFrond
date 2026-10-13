@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { api } from '../api'
 import { useNotificationsStore } from './notifications'
 import { useOrdersStore } from './orders'
@@ -85,14 +85,41 @@ export const useFeedbackStore = defineStore('feedback', () => {
   async function markSeen(list) {
     const now = new Date().toISOString()
     await Promise.all(list.filter(f => !f.seenAt).map(async f => {
-      f.seenAt = now
+      // Puede ser el mismo objeto de la tienda: revisar antes de modificarlo
       const local = items.value.find(i => i.id === f.id)
-      if (local && !local.seenAt) {
-        local.seenAt = now
-        unseen.value = Math.max(0, unseen.value - 1)
-      }
+      if (local && !local.seenAt) unseen.value = Math.max(0, unseen.value - 1)
+      f.seenAt = now
+      if (local) local.seenAt = now
       await api.patch(`/api/feedback/${f.id}/seen`).catch(() => {})
     }))
+  }
+
+  /** Retroalimentación recibida sobre una orden (operario). */
+  const forOrder = (code) => items.value.filter(f => f.orderCode === code)
+
+  /** Observaciones que el operario aún no ha marcado como corregidas. */
+  const openCount = computed(() => items.value.filter(f => !f.resolvedAt).length)
+
+  /** El operario marca la observación como corregida (o la reabre). */
+  async function resolve(item, resolved = true) {
+    try {
+      const updated = await api.patch(`/api/feedback/${item.id}/resolve`, { resolved })
+      const local = items.value.find(f => f.id === item.id) || item
+      // Marcarla como corregida también la marca como vista
+      if (!local.seenAt && updated.seenAt) unseen.value = Math.max(0, unseen.value - 1)
+      for (const target of new Set([item, local])) {
+        target.seenAt     = updated.seenAt
+        target.resolvedAt = updated.resolvedAt
+      }
+      notify.success(
+        resolved ? `La observación de la orden ${item.orderCode} quedó como corregida.` : `La observación de la orden ${item.orderCode} se reabrió.`,
+        { title: resolved ? 'Observación corregida' : 'Observación reabierta' }
+      )
+      return true
+    } catch (e) {
+      notify.error(e.message || 'No fue posible actualizar la observación.', { title: 'Error' })
+      return false
+    }
   }
 
   /* ── Enviar / consultar por orden (admin) ── */
@@ -124,5 +151,5 @@ export const useFeedbackStore = defineStore('feedback', () => {
     }
   }
 
-  return { items, unseen, showing, start, stop, open, dismiss, markSeen, fetchMine, send, fetchForOrder }
+  return { items, unseen, showing, openCount, start, stop, open, dismiss, markSeen, resolve, forOrder, fetchMine, send, fetchForOrder }
 })
