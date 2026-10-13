@@ -27,46 +27,29 @@
               <span>{{ lastScanMessage }}</span>
             </div>
 
-            <!-- Zona de foto -->
-            <label class="photo-drop" :class="{
-              'scanning': ocrState==='scanning',
-              'done':     ocrState==='done',
-              'manual':   ocrState==='manual',
-              'has-photo': orderPhoto,
-            }">
-              <input type="file" accept="image/*"
-                class="photo-drop-input"
-                @change="onPhoto" :disabled="ocrState==='scanning'" />
-
-              <div class="photo-drop-content">
-                <div class="photo-drop-icon">
-                  <span v-if="ocrState==='scanning'" class="spin-icon"></span>
-                  <i v-else-if="ocrState==='done'"   class="fas fa-check-circle" style="color:var(--success)"></i>
-                  <i v-else-if="orderPhoto"           class="fas fa-image"></i>
-                  <i v-else                           class="fas fa-camera"></i>
-                </div>
-                <div class="photo-drop-text">
-                  <span class="photo-drop-main">
-                    {{ ocrState==='scanning' ? 'Leyendo código de la orden…'
-                       : ocrState==='done'   ? 'Código detectado automáticamente'
-                       : orderPhoto          ? 'Foto cargada — click para cambiar'
-                       :                      'Subir foto de la orden' }}
-                  </span>
-                  <span class="photo-drop-sub">
-                    {{ ocrState==='done'    ? `Código: ${orderCode}`
-                       : ocrState==='manual' ? 'No detectado — ingresa el código a mano'
-                       : ocrState==='scanning' ? ''
-                       :                       'El sistema leerá el código automáticamente' }}
-                  </span>
-                </div>
-              </div>
-            </label>
+            <button
+              type="button"
+              class="doccam-btn"
+              :disabled="ocrState==='scanning' || photos.length >= MAX_PHOTOS"
+              @click="docCamOpen = true"
+            >
+              <span v-if="ocrState==='scanning'" class="spin-icon"></span>
+              <i v-else class="fas" :class="photos.length ? 'fa-plus' : 'fa-camera-retro'"></i>
+              {{ ocrState==='scanning'          ? 'Leyendo código de la orden…'
+                 : photos.length >= MAX_PHOTOS  ? `Máximo ${MAX_PHOTOS} páginas`
+                 : photos.length                ? `Agregar otra página (${photos.length + 1})`
+                 :                               'Capturar con escáner de documentos' }}
+            </button>
+            <p v-if="ocrState==='done' || ocrState==='manual'" class="ocr-status" :class="ocrState">
+              <i class="fas" :class="ocrState==='done' ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
+              {{ ocrState==='done' ? `Código detectado: ${orderCode}` : 'No se detectó el código — ingrésalo a mano' }}
+            </p>
 
             <!-- Campos -->
             <div class="fields-block">
 
               <div class="field">
-                <label class="flabel">Código de orden</label>
+                <label class="flabel">Orden de producción</label>
                 <div class="mf-wrap">
                   <i class="fas fa-barcode mf-icon"></i>
                   <input
@@ -87,14 +70,14 @@
               </div>
 
               <div class="field">
-                <label class="flabel">Nombre del producto <span class="freq">&nbsp;*</span></label>
+                <label class="flabel">Cliente <span class="freq">&nbsp;*</span></label>
                 <div class="mf-wrap">
-                  <i class="fas fa-tag mf-icon"></i>
+                  <i class="fas fa-user mf-icon"></i>
                   <input
                     v-model="orderName"
                     type="text"
                     class="mf-inp"
-                    placeholder="Canaleta galvanizada 4×2"
+                    placeholder="Nombre del cliente"
                   />
                 </div>
               </div>
@@ -127,13 +110,13 @@
               type="button"
               class="btn-save btn-cta w-100"
               :disabled="!canSubmit || submitting"
-              @click="submit"
+              @click="submit()"
             >
               <i class="fas me-2" :class="submitting ? 'fa-spinner fa-spin' : 'fa-paper-plane'"></i>
               {{ submitting ? 'Registrando…' : 'Registrar en órdenes del día' }}
             </button>
             <p v-if="!orderName.trim() && orderCode.trim()" class="btn-cta-hint">
-              falta el nombre del producto
+              falta el cliente
             </p>
 
           </div>
@@ -148,51 +131,89 @@
               <i class="fas fa-file-invoice"></i>
             </div>
             <p class="empty-title">Sin orden cargada</p>
-            <p class="empty-body">Sube la foto de una orden de producción. El sistema leerá el código desde la esquina superior derecha. Si no lo detecta, ingrésalo manualmente.</p>
+            <p class="empty-body">Captura la orden de producción con el escáner de documentos. El sistema leerá el código desde la esquina superior derecha. Si no lo detecta, ingrésalo manualmente.</p>
           </div>
 
           <!-- Foto sin registrar -->
           <div v-else-if="!lastOrder && orderPhoto" class="photo-viewer">
             <div class="photo-viewer-bar">
-              <span><i class="fas fa-file-image me-2"></i>Vista previa</span>
+              <span>
+                <i class="fas fa-file-image me-2"></i>Vista previa
+                <template v-if="photos.length > 1"> · página {{ selectedIdx + 1 }} de {{ photos.length }}</template>
+              </span>
               <span class="photo-viewer-badge">
                 <i class="fas fa-crosshairs me-1"></i>Código en esquina superior derecha
               </span>
             </div>
             <img :src="orderPhoto" class="photo-viewer-img" alt="Orden" />
+
+            <!-- Páginas capturadas -->
+            <div class="pv-strip">
+              <div
+                v-for="(p, i) in photos"
+                :key="p.url"
+                class="pv-thumb"
+                :class="{ 'is-active': i === selectedIdx }"
+                @click="selectedIdx = i"
+              >
+                <img :src="p.url" :alt="`Página ${i + 1}`" />
+                <span class="pv-num">{{ i + 1 }}</span>
+                <button type="button" class="pv-remove" title="Quitar página" @click.stop="removePhoto(i)">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+              <button
+                v-if="photos.length < MAX_PHOTOS"
+                type="button"
+                class="pv-add"
+                :disabled="ocrState==='scanning'"
+                title="Agregar otra página"
+                @click="docCamOpen = true"
+              >
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
           </div>
 
           <!-- Orden registrada -->
-          <div v-else-if="lastOrder" class="order-result">
+          <div v-else-if="lastOrder" :key="lastScannedCode" class="order-result">
 
-            <!-- Cabecera -->
-            <div class="result-header">
-              <div class="result-header-icon"><i class="fas fa-check"></i></div>
-              <div>
-                <h3 class="result-header-title">Orden registrada</h3>
-                <p class="result-header-sub">Comprobante de registro</p>
+            <!-- Estado -->
+            <div class="result-hero">
+              <div class="result-check-wrap">
+                <svg viewBox="0 0 52 52" class="result-check" aria-hidden="true">
+                  <circle class="check-circle" cx="26" cy="26" r="24" />
+                  <path class="check-mark" d="M16 27l7 7 13-14" />
+                </svg>
               </div>
+              <h3 class="result-title">Orden registrada</h3>
+              <p v-if="registeredAt" class="result-sub">{{ registeredAt }}</p>
             </div>
 
-            <!-- Recibo -->
-            <div class="receipt">
-              <h2 class="receipt-product">{{ lastOrder.product }}</h2>
-              <p class="receipt-code">{{ lastOrder.code }}</p>
-
-              <div class="receipt-divider"></div>
-
-              <div class="receipt-row">
-                <span class="receipt-row-label">Sede</span>
-                <span class="receipt-row-dots"></span>
-                <span class="receipt-row-val">{{ lastOrder.sedeInfo.name }}</span>
+            <!-- Resumen -->
+            <div class="result-summary">
+              <div class="result-summary-head">
+                <span class="result-label">Orden de producción</span>
+                <p class="result-code">{{ lastOrder.code }}</p>
               </div>
-              <div class="receipt-row">
-                <span class="receipt-row-label">Operador</span>
-                <span class="receipt-row-dots"></span>
-                <span class="receipt-row-val">{{ lastOrder.operator }}</span>
-              </div>
-
-              <div class="receipt-divider"></div>
+              <dl class="result-rows">
+                <div class="result-row">
+                  <dt>Cliente</dt>
+                  <dd>{{ lastOrder.product }}</dd>
+                </div>
+                <div class="result-row">
+                  <dt>Sede</dt>
+                  <dd>{{ lastOrder.sedeInfo?.name || lastOrder.sede }}</dd>
+                </div>
+                <div class="result-row">
+                  <dt>Registrada por</dt>
+                  <dd>{{ lastOrder.operator }}</dd>
+                </div>
+                <div class="result-row">
+                  <dt>Documento</dt>
+                  <dd>{{ pagesLabel }}</dd>
+                </div>
+              </dl>
             </div>
 
             <!-- Acciones -->
@@ -202,18 +223,18 @@
                 type="button"
                 class="btn-cancel"
                 @click="clearScan"
-              ><i class="fas fa-plus me-2"></i>Registrar nueva orden</button>
+              ><i class="fas fa-plus me-2"></i>Nueva orden</button>
               <RouterLink
                 v-if="!isOperario"
                 :to="`/orden/${lastOrder.code}`"
                 class="btn-save"
-              ><i class="fas fa-file-alt me-2"></i>Ir a la orden</RouterLink>
+              >Ver orden<i class="fas fa-arrow-right ms-2"></i></RouterLink>
               <button
                 v-if="isOperario"
                 type="button"
                 class="btn-save"
                 @click="clearScan"
-              ><i class="fas fa-qrcode me-2"></i>Escanear otra orden</button>
+              ><i class="fas fa-camera-retro me-2"></i>Registrar otra orden</button>
             </div>
 
           </div>
@@ -221,6 +242,39 @@
 
       </div>
     </div>
+
+    <DocCameraModal v-model="docCamOpen" @capture="processPhoto" />
+
+    <!-- Orden duplicada: confirmar antes de registrarla de nuevo -->
+    <BaseModal
+      v-model="dupOpen"
+      icon="fa-copy"
+      title="Orden ya registrada"
+      :subtitle="dup?.message"
+      max-width="460px"
+    >
+      <div v-if="dup" class="dup-box">
+        <div class="dup-row"><span>Orden producción</span><strong>{{ dup.existing.code }}</strong></div>
+        <div class="dup-row"><span>Cliente</span><strong>{{ dup.existing.product }}</strong></div>
+        <div class="dup-row"><span>Responsable</span><strong>{{ dup.existing.operator }}</strong></div>
+        <div class="dup-row"><span>Sede</span><strong>{{ sedes.find(s => s.code === dup.existing.sede)?.name || dup.existing.sede }}</strong></div>
+        <div class="dup-row">
+          <span>Registrada</span>
+          <strong>{{ new Date(dup.existing.scannedAt || dup.existing.scheduledAt).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) }}</strong>
+        </div>
+        <p class="dup-note">
+          <i class="fas fa-exclamation-triangle me-1"></i>
+          Si continúas, la orden se registrará de nuevo a tu nombre con la fecha de hoy.
+        </p>
+      </div>
+      <template #footer>
+        <button class="btn-cancel" @click="dupOpen = false">Cancelar</button>
+        <button class="btn-save" :disabled="submitting" @click="confirmDuplicate">
+          <i class="fas" :class="submitting ? 'fa-spinner fa-spin' : 'fa-redo'"></i>
+          Registrar de nuevo
+        </button>
+      </template>
+    </BaseModal>
   </section>
 </template>
 
@@ -231,6 +285,8 @@ import { RouterLink } from 'vue-router'
 import { useOrdersStore } from '../stores/orders'
 import { useAuthStore }   from '../stores/auth'
 import BaseSelect from '../components/BaseSelect.vue'
+import BaseModal from '../components/BaseModal.vue'
+import DocCameraModal from '../components/DocCameraModal.vue'
 
 const ordersStore = useOrdersStore()
 const auth        = useAuthStore()
@@ -252,8 +308,11 @@ const sedeNombre  = computed(() => sedes.value.find(s => s.code === sedeFija.val
 const orderCode  = ref('')
 const orderName  = ref('')
 const orderSede  = ref(sedeFija.value)
-const orderPhoto = ref('')
-const orderPhotoFile = ref(null)
+/* Una orden puede tener varias páginas/fotos */
+const MAX_PHOTOS  = 10
+const photos      = ref([])   // [{ file, url }]
+const selectedIdx = ref(0)
+const orderPhoto  = computed(() => photos.value[selectedIdx.value]?.url || '')
 const ocrState   = ref('idle')
 const submitting = ref(false)
 
@@ -273,9 +332,26 @@ const lastOrder = computed(() =>
     : null
 )
 
+const registeredAt = computed(() => {
+  const d = lastOrder.value?.scannedAt || lastOrder.value?.scheduledAt
+  if (!d) return ''
+  const date = new Date(d)
+  return `${date.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })} · ${date.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })}`
+})
+
+const pagesLabel = computed(() => {
+  const o = lastOrder.value
+  const n = o?.photos?.length || (o?.photoUrl ? 1 : 0)
+  return n ? `${n} ${n === 1 ? 'página escaneada' : 'páginas escaneadas'}` : 'Sin documento'
+})
+
 const canSubmit = computed(() => orderCode.value.trim() && orderName.value.trim())
 
-const submit = async () => {
+/* Duplicados: el backend responde 409 y aquí se pide confirmación */
+const dup     = ref(null)
+const dupOpen = ref(false)
+
+const submit = async (confirm = false) => {
   if (!canSubmit.value) return
   submitting.value = true
   try {
@@ -284,18 +360,27 @@ const submit = async () => {
       orderName.value,
       orderSede.value,
       auth.user?.name,
-      orderPhotoFile.value
+      photos.value.map(p => p.file),
+      { confirmDuplicate: confirm === true }
     )
 
+    if (result?.reason === 'duplicate') {
+      dup.value = result
+      dupOpen.value = true
+      return
+    }
     if (!result?.ok) return
+    dupOpen.value = false
 
     orderCode.value = ''; orderName.value = ''
     if (!isOperario.value) orderSede.value = sedes.value[0]?.code || ''
-    orderPhoto.value = ''; orderPhotoFile.value = null; ocrState.value = 'idle'
+    clearPhotos()
   } finally {
     submitting.value = false
   }
 }
+
+const confirmDuplicate = () => submit(true)
 
 /* OCR */
 const loadTess = async () => {
@@ -304,11 +389,35 @@ const loadTess = async () => {
   tess = await createWorker('eng')
   return tess
 }
-const onPhoto = async (e) => {
-  const file = e.target.files?.[0]; e.target.value = ''; if (!file) return
-  orderPhoto.value = URL.createObjectURL(file); orderPhotoFile.value = file; ocrState.value = 'scanning'
+/* Cámara de documentos (KB-700 u otra webcam USB) */
+const docCamOpen = ref(false)
+
+function clearPhotos() {
+  photos.value.forEach(p => URL.revokeObjectURL(p.url))
+  photos.value = []
+  selectedIdx.value = 0
+  ocrState.value = 'idle'
+}
+
+function removePhoto(i) {
+  URL.revokeObjectURL(photos.value[i].url)
+  photos.value.splice(i, 1)
+  if (selectedIdx.value >= photos.value.length) selectedIdx.value = Math.max(0, photos.value.length - 1)
+  if (!photos.value.length) ocrState.value = 'idle'
+}
+
+const processPhoto = async (file) => {
+  if (photos.value.length >= MAX_PHOTOS) return
+  const url = URL.createObjectURL(file)
+  photos.value.push({ file, url })
+  selectedIdx.value = photos.value.length - 1
+
+  // El OCR solo se intenta mientras no se haya detectado el código
+  // (normalmente está en la primera página).
+  if (ocrState.value === 'done') return
+  ocrState.value = 'scanning'
   try {
-    const img = await new Promise((res, rej) => { const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=orderPhoto.value })
+    const img = await new Promise((res, rej) => { const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url })
     const cx=Math.floor(img.width*.48), cw=img.width-cx, ch=Math.floor(img.height*.28), S=3
     const canvas=document.createElement('canvas'); canvas.width=Math.round(cw*S); canvas.height=Math.round(ch*S)
     const ctx=canvas.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height)
@@ -327,6 +436,30 @@ const onPhoto = async (e) => {
 </script>
 
 <style scoped>
+/* Botón cámara de documentos */
+.doccam-btn { display:flex; align-items:center; justify-content:center; gap:0.55rem; width:100%; padding:0.7rem 1rem; border:1.5px solid var(--accent); border-radius:0.65rem; background:color-mix(in srgb, var(--accent) 8%, transparent); color:var(--accent-strong); font-size:0.85rem; font-weight:600; cursor:pointer; transition:background 0.14s; }
+.doccam-btn:hover:not(:disabled) { background:color-mix(in srgb, var(--accent) 16%, transparent); }
+.doccam-btn:disabled { opacity:0.55; cursor:not-allowed; }
+html.dark .doccam-btn { color:#bcd6f7; }
+
+/* Tira de páginas capturadas */
+.pv-strip { display:flex; gap:0.5rem; padding:0.65rem; overflow-x:auto; border-top:1px solid var(--line); }
+.pv-thumb { position:relative; flex:0 0 auto; width:64px; height:80px; border-radius:0.45rem; overflow:hidden; border:2px solid transparent; cursor:pointer; background:var(--surface); }
+.pv-thumb.is-active { border-color:var(--accent); }
+.pv-thumb img { width:100%; height:100%; object-fit:cover; }
+.pv-num { position:absolute; left:0.2rem; bottom:0.2rem; min-width:1.1rem; padding:0 0.25rem; border-radius:999px; background:rgba(0,0,0,0.6); color:#fff; font-size:0.62rem; font-weight:700; text-align:center; }
+.pv-remove { position:absolute; top:0.15rem; right:0.15rem; width:1.2rem; height:1.2rem; display:grid; place-items:center; border:none; border-radius:50%; background:rgba(0,0,0,0.6); color:#fff; font-size:0.6rem; cursor:pointer; }
+.pv-add { flex:0 0 auto; width:64px; height:80px; display:grid; place-items:center; border:1.5px dashed var(--line); border-radius:0.45rem; background:none; color:var(--ink-500); cursor:pointer; }
+.pv-add:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+.pv-add:disabled { opacity:0.5; cursor:not-allowed; }
+
+/* Modal de duplicado */
+.dup-box { display:flex; flex-direction:column; gap:0.1rem; }
+.dup-row { display:flex; justify-content:space-between; gap:1rem; padding:0.5rem 0; border-bottom:1px dashed var(--line); font-size:0.85rem; }
+.dup-row span { color:var(--ink-500); }
+.dup-row strong { color:var(--ink-900); text-align:right; }
+.dup-note { margin:0.9rem 0 0; padding:0.65rem 0.8rem; border-radius:0.55rem; font-size:0.8rem; color:var(--ink-700); background:color-mix(in srgb, var(--warning, #d99a1e) 14%, transparent); }
+
 .scanner-page { padding: 1.25rem 0; }
 
 .scanner-container {
@@ -354,15 +487,8 @@ const onPhoto = async (e) => {
   width: 100%;
   min-height: calc(100vh - var(--topbar-h) - 2.5rem);
   display: flex;
-  flex-direction: column;
-}
-.scanner-layout.result-only .order-result {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-.scanner-layout.result-only .result-actions {
-  margin-top: auto;
+  align-items: center;
+  justify-content: center;
 }
 
 /* ══ PANEL IZQUIERDO ══ */
@@ -417,54 +543,15 @@ const onPhoto = async (e) => {
   padding: 0.6rem 0.875rem;
 }
 
-/* Zona de foto */
-.photo-drop {
-  display: block;
-  position: relative;
+/* Resultado de la lectura del código */
+.ocr-status {
+  display: flex; align-items: center; gap: 0.45rem;
+  margin: 0; padding: 0.5rem 0.8rem;
   border-radius: 0.5rem;
-  overflow: hidden;
-  cursor: pointer;
-  border: 2px dashed var(--line);
-  background: var(--surface);
-  transition: border-color 0.15s, background 0.15s;
+  font-size: 0.75rem; font-weight: 600;
 }
-.photo-drop-input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-  width: 100%;
-  height: 100%;
-}
-.photo-drop:hover                               { border-color: var(--accent); background: rgba(42,120,214,0.04); }
-.photo-drop.done                                { border-style: solid; border-color: var(--success); background: rgba(46,139,87,0.04); }
-.photo-drop.manual                              { border-style: solid; border-color: var(--accent); }
-.photo-drop.has-photo:not(.done):not(.manual)   { border-style: solid; border-color: var(--line); background: var(--paper); }
-
-.photo-drop-content {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 0.9rem;
-}
-
-.photo-drop-icon {
-  width: 2rem;
-  height: 2rem;
-  min-width: 2rem;
-  border-radius: 0.5rem;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  display: grid;
-  place-items: center;
-  font-size: 0.9rem;
-  color: var(--ink-500);
-}
-.photo-drop.done .photo-drop-icon   { background: rgba(46,139,87,0.1); border-color: transparent; }
-.photo-drop.manual .photo-drop-icon { background: rgba(42,120,214,0.1); border-color: transparent; color: var(--accent); }
-
-.photo-drop-main { display:block; font-size:0.82rem; font-weight:600; color:var(--ink-900); }
-.photo-drop-sub  { display:block; font-size:0.68rem; color:var(--ink-500); margin-top:0.1rem; }
+.ocr-status.done   { color: var(--success); background: rgba(46,139,87,0.08); }
+.ocr-status.manual { color: var(--accent-strong); background: rgba(42,120,214,0.08); }
 
 /* Campos */
 .fields-block { display: flex; flex-direction: column; gap: 0.9rem; }
@@ -554,67 +641,122 @@ const onPhoto = async (e) => {
 }
 .photo-viewer-img { width:100%; max-height:520px; object-fit: contain; display: block; }
 
-/* Orden registrada — estilo recibo */
+/* Orden registrada */
 .order-result {
-  overflow:hidden;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem 2rem;
   background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 0.75rem;
-  box-shadow: var(--shadow-sm);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-lg);
+  animation: result-in 0.4s cubic-bezier(.2,.8,.2,1) both;
 }
 
-.result-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.4rem 1.75rem;
-  background: linear-gradient(120deg, var(--accent) 0%, var(--accent-strong) 100%);
-  color: #fff;
-}
-.result-header-icon {
-  width: 2.75rem;
-  height: 2.75rem;
-  min-width: 2.75rem;
-  background: rgba(255,255,255,0.2);
-  border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 0.5rem;
+.result-hero { text-align: center; }
+.result-check-wrap {
+  width: 4rem;
+  height: 4rem;
+  margin: 0 auto 1.1rem;
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 1.15rem;
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--success) 5%, transparent);
+  animation: pop 0.45s cubic-bezier(.34,1.56,.64,1) 0.1s both;
 }
-.result-header-title { font-family:var(--font-display); font-size:1.15rem; font-weight:700; margin:0 0 0.15rem; }
-.result-header-sub   { font-size:0.8rem; opacity: 0.75; margin:0; }
-
-.receipt {
-  padding: 2rem 2rem 0.5rem;
-  font-family: 'Courier New', ui-monospace, monospace;
+.result-check { width: 2.6rem; height: 2.6rem; }
+.check-circle {
+  fill: var(--success);
+  stroke: var(--success);
+  stroke-width: 2;
 }
-
-.receipt-product {
+.check-mark {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 32;
+  stroke-dashoffset: 32;
+  animation: draw 0.35s ease-out 0.45s forwards;
+}
+.result-title {
   font-family: var(--font-display);
-  font-size: 1.4rem; font-weight: 700; color: var(--ink-900);
-  margin: 0 0 0.4rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--ink-900);
+  margin: 0 0 0.3rem;
 }
-.receipt-code {
-  font-size: 0.95rem; color: var(--ink-500);
-  margin: 0;
-  letter-spacing: 0.03rem;
+.result-sub { font-size: 0.85rem; color: var(--ink-500); margin: 0; }
+
+.result-summary {
+  margin-top: 1.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  animation: fade-up 0.4s ease-out 0.25s both;
+}
+.result-summary-head {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--accent) 4%, var(--paper));
+}
+.result-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08rem;
+  color: var(--ink-500);
+}
+.result-code {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-900);
+  margin: 0.15rem 0 0;
+  word-break: break-all;
 }
 
-.receipt-divider {
-  border-top: 1px dashed var(--line);
-  margin: 1.4rem 0;
+.result-rows { margin: 0; padding: 0.4rem 1.25rem; }
+.result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.7rem 0;
+  font-size: 0.875rem;
 }
+.result-row + .result-row { border-top: 1px solid var(--line); }
+.result-row dt { color: var(--ink-500); font-weight: 500; white-space: nowrap; }
+.result-row dd { margin: 0; color: var(--ink-900); font-weight: 600; text-align: right; word-break: break-word; }
 
-.receipt-row { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.4rem 0; }
-.receipt-row-label { font-size: 0.88rem; color: var(--ink-500); white-space: nowrap; }
-.receipt-row-dots  { flex: 1; border-bottom: 1px dotted var(--line); margin-bottom: 0.3rem; }
-.receipt-row-val   { font-size: 0.88rem; font-weight: 700; color: var(--ink-900); white-space: nowrap; }
-
-/* Acciones */
 .result-actions {
-  display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1.4rem 2rem;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  animation: fade-up 0.4s ease-out 0.35s both;
 }
+.result-actions > * { justify-content: center; display: inline-flex; align-items: center; }
+.result-actions > :only-child { grid-column: 1 / -1; }
 .result-actions a.btn-save { text-decoration: none; }
+
+@keyframes result-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes fade-up   { from { opacity: 0; transform: translateY(6px); }  to { opacity: 1; transform: none; } }
+@keyframes pop       { from { transform: scale(0.6); opacity: 0; }        to { transform: scale(1); opacity: 1; } }
+@keyframes draw      { to { stroke-dashoffset: 0; } }
+
+@media (max-width: 575px) {
+  .order-result { padding: 2rem 1.25rem 1.25rem; }
+  .result-actions { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .order-result, .result-check-wrap, .result-summary, .result-actions { animation: none; }
+  .check-mark { animation: none; stroke-dashoffset: 0; }
+}
 </style>

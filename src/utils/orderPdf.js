@@ -24,14 +24,30 @@ const fetchAsDataUrl = (url) => fetch(url)
   }))
 
 export async function generateOrderPdf(order) {
-  let photo = null
-  if (order.photoUrl) {
-    try { photo = await fetchAsDataUrl(`${BASE}${order.photoUrl}`) } catch { photo = null }
-  }
+  // Todas las fotos de la orden (las antiguas solo tienen photoUrl)
+  const urls = order.photos?.length ? order.photos : (order.photoUrl ? [order.photoUrl] : [])
+  const photos = (await Promise.all(
+    urls.map(u => fetchAsDataUrl(`${BASE}${u}`).catch(() => null))
+  )).filter(Boolean)
+
+  const photoBox = (image, i) => ([
+    photos.length > 1
+      ? { text: `Foto ${i + 1} de ${photos.length}`, fontSize: 8, color: INK_500, margin: [0, i ? 14 : 0, 0, 4] }
+      : null,
+    {
+      table: { widths: ['*'], body: [[{ image, fit: [500, photos.length > 1 ? 560 : 320], alignment: 'center' }]] },
+      layout: {
+        hLineWidth: () => 1, vLineWidth: () => 1,
+        hLineColor: () => LINE, vLineColor: () => LINE,
+        paddingLeft: () => 8, paddingRight: () => 8, paddingTop: () => 8, paddingBottom: () => 8,
+      },
+      unbreakable: true,
+    },
+  ].filter(Boolean))
 
   const rows = [
-    ['Código',   order.code],
-    ['Producto', order.product],
+    ['Orden producción', order.code],
+    ['Cliente',  order.product],
     ['Operador', order.operator],
     ['Fecha',    order.scheduledAt ? new Date(order.scheduledAt).toLocaleString('es-CO') : '—'],
   ]
@@ -80,15 +96,8 @@ export async function generateOrderPdf(order) {
 
       // Evidencia fotográfica
       { text: 'EVIDENCIA FOTOGRÁFICA', style: 'sectionLabel', margin: [0, 24, 0, 8] },
-      photo
-        ? {
-            table: { widths: ['*'], body: [[{ image: photo, fit: [500, 320], alignment: 'center' }]] },
-            layout: {
-              hLineWidth: () => 1, vLineWidth: () => 1,
-              hLineColor: () => LINE, vLineColor: () => LINE,
-              paddingLeft: () => 8, paddingRight: () => 8, paddingTop: () => 8, paddingBottom: () => 8,
-            },
-          }
+      photos.length
+        ? photos.flatMap(photoBox)
         : { text: 'No hay foto registrada para esta orden.', italics: true, color: '#94a3b8', alignment: 'center', margin: [0, 14, 0, 14] },
     ],
     styles: {
