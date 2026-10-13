@@ -1,6 +1,8 @@
 <template>
 
   <NotificationsTray />
+  <PasswordChangeRequired v-if="!isLogin && auth.user?.mustChangePassword" />
+  <FeedbackAlert v-if="!isLogin && auth.user && auth.user.role !== 'admin' && !auth.user.mustChangePassword" />
 
   <!-- ── Login: sin layout ── -->
   <div v-if="isLogin">
@@ -14,18 +16,18 @@
       <button class="hamburger-btn" @click="sidebarOpen = !sidebarOpen">
         <i class="fas fa-bars"></i>
       </button>
-      <div class="topbar-brand">
-        <div class="topbar-brand-icon"><i class="fas fa-project-diagram"></i></div>
-        <span class="topbar-brand-title">
-          CONEXA
+      <RouterLink to="/" class="topbar-brand" title="Ir al inicio">
+        <img src="/img/logo2-01.png" alt="Láminas & Dobleces" class="topbar-logo" />
+        <span class="topbar-brand-title d-none d-sm-inline-flex">
           <span class="topbar-divider"></span>
-          <small>Ordenes</small>
+          <small>Órdenes</small>
         </span>
-      </div>
+      </RouterLink>
       <div class="topbar-right ms-auto">
         <span class="topbar-date d-none d-md-inline">
           <i class="fas fa-calendar-day me-2"></i>{{ today }}
         </span>
+        <NotificationsBell v-if="auth.user" :key="auth.user.id" />
         <button class="theme-toggle" @click="toggleDark" :title="darkMode ? 'Modo claro' : 'Modo oscuro'">
           <i class="fas" :class="darkMode ? 'fa-sun' : 'fa-moon'"></i>
         </button>
@@ -104,8 +106,9 @@
       <label class="mf-label">Nueva contraseña</label>
       <div class="mf-wrap">
         <i class="fas fa-key mf-icon"></i>
-        <input v-model="settingsForm.newPassword" type="password" class="mf-inp" />
+        <input v-model="settingsForm.newPassword" type="password" class="mf-inp" placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
       </div>
+      <PasswordStrength :password="settingsForm.newPassword" />
     </div>
     <div v-if="settingsError" class="mf-error">
       <i class="fas fa-exclamation-circle"></i>{{ settingsError }}
@@ -131,6 +134,10 @@ import { useOrdersStore } from './stores/orders'
 import { useNotificationsStore } from './stores/notifications'
 import { api } from './api'
 import NotificationsTray from './components/NotificationsTray.vue'
+import NotificationsBell from './components/NotificationsBell.vue'
+import FeedbackAlert from './components/FeedbackAlert.vue'
+import PasswordChangeRequired from './components/PasswordChangeRequired.vue'
+import PasswordStrength from './components/PasswordStrength.vue'
 import BaseModal from './components/BaseModal.vue'
 
 const DESKTOP_BREAKPOINT = 1200

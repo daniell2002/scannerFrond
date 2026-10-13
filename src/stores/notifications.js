@@ -10,7 +10,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
     const id = nextId++
     const timeout = opts.timeout ?? 4000
     const title = opts.title || ''
-    items.value.push({ id, type, title, message })
+    items.value.push({ id, type, title, message, timeout })
 
     if (timeout > 0) {
       setTimeout(() => remove(id), timeout)

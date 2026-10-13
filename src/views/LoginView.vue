@@ -3,10 +3,7 @@
 
     <!-- ── Panel izquierdo: marca ── -->
     <div class="login-left">
-      <div class="login-left-brand">
-        <div class="login-left-icon"><i class="fas fa-project-diagram"></i></div>
-        <span>CONEXA</span>
-      </div>
+      <img src="/img/logo2-01.png" alt="Láminas & Dobleces" class="login-left-logo" />
 
       <h1 class="login-left-title">Gestión de órdenes de producción, todo en un solo lugar.</h1>
       <p class="login-left-desc">Escanea, registra y controla las órdenes de tus plantas de producción desde cualquier sede.</p>
@@ -23,21 +20,28 @@
       <div class="lc-card">
 
         <div class="lc-header">
+          <!-- En celular no se ve el panel azul: el logo (letras blancas) va sobre su propia placa -->
+          <div class="lc-logo-mobile">
+            <img src="/img/logo2-01.png" alt="Láminas & Dobleces" />
+          </div>
           <h1 class="lc-title">Bienvenido de vuelta</h1>
           <p class="lc-desc">Ingresa tus credenciales para acceder al sistema</p>
         </div>
 
         <form @submit.prevent="handleLogin" novalidate class="lc-form">
           <div class="mf-field">
-            <label class="mf-label">Usuario</label>
+            <label class="mf-label">Correo electrónico</label>
             <div class="mf-wrap">
-              <i class="fas fa-user mf-icon"></i>
+              <i class="fas fa-envelope mf-icon"></i>
               <input
                 v-model="username"
                 type="text"
+                inputmode="email"
                 class="mf-inp"
-                placeholder="Ingresa tu usuario"
+                placeholder="nombre@empresa.com"
                 autocomplete="username"
+                autocapitalize="off"
+                spellcheck="false"
                 required
               />
             </div>
@@ -63,7 +67,7 @@
 
           <div class="form-check lc-remember">
             <input id="lc-remember" v-model="remember" class="form-check-input" type="checkbox" />
-            <label class="form-check-label" for="lc-remember">Recordar mi usuario</label>
+            <label class="form-check-label" for="lc-remember">Recordar mi correo</label>
           </div>
 
           <div v-if="error" class="alert alert-danger lc-error" role="alert">
@@ -104,15 +108,21 @@ onMounted(() => {
     username.value = saved
     remember.value = true
   }
+  // Motivo de un cierre de sesión forzado (p. ej. cuenta desactivada)
+  const notice = sessionStorage.getItem('auth_notice')
+  if (notice) {
+    error.value = notice
+    sessionStorage.removeItem('auth_notice')
+  }
 })
 
 async function handleLogin() {
   error.value   = ''
   loading.value = true
   await new Promise(r => setTimeout(r, 400))
-  const ok = await auth.login(username.value.trim(), password.value)
+  const result = await auth.login(username.value.trim(), password.value)
   loading.value = false
-  if (ok) {
+  if (result.ok) {
     if (remember.value) {
       localStorage.setItem('login_remember_user', username.value.trim())
     } else {
@@ -120,7 +130,7 @@ async function handleLogin() {
     }
     router.push('/')
   } else {
-    error.value = 'Usuario o contraseña incorrectos.'
+    error.value = result.message
   }
 }
 </script>
@@ -145,19 +155,12 @@ async function handleLogin() {
   overflow: hidden;
 }
 
-.login-left-brand {
-  display: flex; align-items: center; gap: 0.75rem;
-  margin-bottom: 3rem;
-  font-family: var(--font-display); font-weight: 700;
-  letter-spacing: 0.05rem; font-size: 1.05rem;
-}
-.login-left-icon {
-  width: 2.5rem; height: 2.5rem;
-  display: grid; place-items: center;
-  border-radius: 0.6rem;
-  background: rgba(255,255,255,0.16);
-  border: 1px solid rgba(255,255,255,0.26);
-  font-size: 1rem;
+.login-left-logo {
+  width: 100%;
+  max-width: 210px;
+  height: auto;
+  margin-bottom: 2.5rem;
+  display: block;
 }
 
 .login-left-title {
@@ -209,6 +212,18 @@ async function handleLogin() {
 
 /* Header */
 .lc-header { text-align: center; }
+
+/* Logo en celular: placa azul para que se vean las letras blancas */
+.lc-logo-mobile {
+  display: none;
+  margin: 0 auto 1.5rem;
+  padding: 0.9rem 1.25rem;
+  width: fit-content;
+  border-radius: 0.9rem;
+  background: linear-gradient(160deg, var(--accent) 0%, var(--accent-strong) 100%);
+  box-shadow: 0 8px 24px rgba(42,120,214,0.25);
+}
+.lc-logo-mobile img { display: block; height: 44px; width: auto; }
 
 .lc-title {
   font-family: var(--font-display);
@@ -289,7 +304,8 @@ async function handleLogin() {
 
 @media (max-width: 991.98px) {
   .login-left { display: none; }
-  .login-right { flex: 1 1 100%; }
+  .lc-logo-mobile { display: block; }
+  .login-right { flex: 1 1 100%; min-width: 0; padding: 1.5rem 1.25rem; }
 }
 
 html.dark .lc-title { color: #f1f5f9; }
