@@ -9,10 +9,10 @@ import { computed } from 'vue'
 import { useFeedbackStore } from '../stores/feedback'
 
 /*
- * Estado de una orden desde el punto de vista del operario:
+ * Estado de una orden desde el punto de vista del supervisor:
  * Con observaciones → Corregida → Pendiente (sin revisar) → Revisada.
  * Las observaciones mandan sobre la revisión: si el admin dejó un comentario
- * sin atender, eso es lo que el operario necesita ver.
+ * sin atender, eso es lo que el supervisor necesita ver.
  */
 const props = defineProps({ order: { type: Object, required: true } })
 const feedback = useFeedbackStore()

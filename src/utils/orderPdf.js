@@ -48,7 +48,8 @@ export async function generateOrderPdf(order) {
   const rows = [
     ['Orden producción', order.code],
     ['Cliente',  order.product],
-    ['Operador', order.operator],
+    ['Atendido por', order.attendedBy || '—'],
+    ['Registrada por', order.operator],
     ['Fecha',    order.scheduledAt ? new Date(order.scheduledAt).toLocaleString('es-CO') : '—'],
   ]
 

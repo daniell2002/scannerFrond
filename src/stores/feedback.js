@@ -10,13 +10,13 @@ const POLL_MS = 30000
 /*
  * Retroalimentación del admin sobre las órdenes.
  * - Admin: envía comentario + evidencias y consulta el historial de una orden.
- * - Operario: recibe la retroalimentación (campana + modal de alerta).
+ * - Supervisor: recibe la retroalimentación (campana + modal de alerta).
  */
 export const useFeedbackStore = defineStore('feedback', () => {
   const notify = useNotificationsStore()
   const ordersStore = useOrdersStore()
 
-  /* ── Recibida (operario) ── */
+  /* ── Recibida (supervisor) ── */
   const items   = ref([])
   const unseen  = ref(0)
   const showing = ref(null)   // retroalimentación abierta en el modal de alerta
@@ -94,13 +94,13 @@ export const useFeedbackStore = defineStore('feedback', () => {
     }))
   }
 
-  /** Retroalimentación recibida sobre una orden (operario). */
+  /** Retroalimentación recibida sobre una orden (supervisor). */
   const forOrder = (code) => items.value.filter(f => f.orderCode === code)
 
-  /** Observaciones que el operario aún no ha marcado como corregidas. */
+  /** Observaciones que el supervisor aún no ha marcado como corregidas. */
   const openCount = computed(() => items.value.filter(f => !f.resolvedAt).length)
 
-  /** El operario marca la observación como corregida (o la reabre). */
+  /** El supervisor marca la observación como corregida (o la reabre). */
   async function resolve(item, resolved = true) {
     try {
       const updated = await api.patch(`/api/feedback/${item.id}/resolve`, { resolved })

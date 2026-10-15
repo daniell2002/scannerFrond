@@ -83,7 +83,7 @@
               </div>
 
               <div class="field">
-                <!-- Operario: sede fija -->
+                <!-- Supervisor: sede fija -->
                 <template v-if="fixedSede">
                   <label class="flabel">Sede de producción</label>
                   <div class="mf-wrap">
@@ -103,6 +103,23 @@
                 </template>
               </div>
 
+              <!-- Vendedor que atendió al cliente: solo los de la sede de la orden -->
+              <div class="field">
+                <label class="flabel">Atendido por <span class="freq">&nbsp;*</span></label>
+                <BaseSelect
+                  v-model="attendedBy"
+                  :options="vendorOptions"
+                  icon="fa-user-tag"
+                  :placeholder="vendorsLoading ? 'Cargando vendedores…' : vendorOptions.length ? 'Selecciona el vendedor…' : 'Sin vendedores en esta sede'"
+                  :disabled="!vendorOptions.length"
+                />
+                <span v-if="!vendorsLoading && !vendorOptions.length" class="fhint">
+                  <i class="fas fa-info-circle me-1"></i>No hay vendedores registrados en esta sede.
+                  <RouterLink v-if="auth.hasPermission('usuarios')" to="/usuarios">Registrar vendedor</RouterLink>
+                  <template v-else>Pide a un administrador que los registre.</template>
+                </span>
+              </div>
+
             </div>
 
             <!-- CTA -->
@@ -115,8 +132,8 @@
               <i class="fas me-2" :class="submitting ? 'fa-spinner fa-spin' : 'fa-paper-plane'"></i>
               {{ submitting ? 'Registrando…' : 'Registrar en órdenes del día' }}
             </button>
-            <p v-if="!orderName.trim() && orderCode.trim()" class="btn-cta-hint">
-              falta el cliente
+            <p v-if="missingHint" class="btn-cta-hint">
+              {{ missingHint }}
             </p>
 
           </div>
@@ -206,6 +223,10 @@
                   <dd>{{ lastOrder.sedeInfo?.name || lastOrder.sede }}</dd>
                 </div>
                 <div class="result-row">
+                  <dt>Atendido por</dt>
+                  <dd>{{ lastOrder.attendedBy || '—' }}</dd>
+                </div>
+                <div class="result-row">
                   <dt>Registrada por</dt>
                   <dd>{{ lastOrder.operator }}</dd>
                 </div>
@@ -218,19 +239,19 @@
 
             <!-- Acciones -->
             <div class="result-actions">
+              <template v-if="auth.hasPermission('ordenes')">
+                <button
+                  type="button"
+                  class="btn-cancel"
+                  @click="clearScan"
+                ><i class="fas fa-plus me-2"></i>Nueva orden</button>
+                <RouterLink
+                  :to="`/orden/${lastOrder.code}`"
+                  class="btn-save"
+                >Ver orden<i class="fas fa-arrow-right ms-2"></i></RouterLink>
+              </template>
               <button
-                v-if="!isOperario"
-                type="button"
-                class="btn-cancel"
-                @click="clearScan"
-              ><i class="fas fa-plus me-2"></i>Nueva orden</button>
-              <RouterLink
-                v-if="!isOperario"
-                :to="`/orden/${lastOrder.code}`"
-                class="btn-save"
-              >Ver orden<i class="fas fa-arrow-right ms-2"></i></RouterLink>
-              <button
-                v-if="isOperario"
+                v-else
                 type="button"
                 class="btn-save"
                 @click="clearScan"
@@ -256,7 +277,8 @@
       <div v-if="dup" class="dup-box">
         <div class="dup-row"><span>Orden producción</span><strong>{{ dup.existing.code }}</strong></div>
         <div class="dup-row"><span>Cliente</span><strong>{{ dup.existing.product }}</strong></div>
-        <div class="dup-row"><span>Responsable</span><strong>{{ dup.existing.operator }}</strong></div>
+        <div class="dup-row"><span>Atendido por</span><strong>{{ dup.existing.attendedBy || '—' }}</strong></div>
+        <div class="dup-row"><span>Registrada por</span><strong>{{ dup.existing.operator }}</strong></div>
         <div class="dup-row"><span>Sede</span><strong>{{ sedes.find(s => s.code === dup.existing.sede)?.name || dup.existing.sede }}</strong></div>
         <div class="dup-row">
           <span>Registrada</span>
@@ -287,6 +309,7 @@ import { useAuthStore }   from '../stores/auth'
 import BaseSelect from '../components/BaseSelect.vue'
 import BaseModal from '../components/BaseModal.vue'
 import DocCameraModal from '../components/DocCameraModal.vue'
+import { useVendedores } from '../utils/useVendedores'
 
 const ordersStore = useOrdersStore()
 const auth        = useAuthStore()
@@ -301,7 +324,6 @@ onMounted(async () => {
   await ordersStore.fetchOrders()
 })
 
-const isOperario  = computed(() => auth.user?.role === 'operario')
 // Todo el que no es admin registra en su propia sede
 const fixedSede   = computed(() => auth.user?.role !== 'admin')
 const sedeFija    = computed(() => auth.user?.sede || 'BOG')
@@ -318,7 +340,7 @@ const orderPhoto  = computed(() => photos.value[selectedIdx.value]?.url || '')
 const ocrState   = ref('idle')
 const submitting = ref(false)
 
-// La sede fija del operario o el fallback 'BOG' pueden no existir entre las sedes reales
+// La sede fija del supervisor o el fallback 'BOG' pueden no existir entre las sedes reales
 // (los códigos ahora se autogeneran); si no hay match, cae a la primera sede disponible.
 watch(sedes, (list) => {
   if (!fixedSede.value && list.length && !list.some(s => s.code === orderSede.value)) {
@@ -347,7 +369,21 @@ const pagesLabel = computed(() => {
   return n ? `${n} ${n === 1 ? 'página escaneada' : 'páginas escaneadas'}` : 'Sin documento'
 })
 
-const canSubmit = computed(() => orderCode.value.trim() && orderName.value.trim())
+/* "Atendido por": vendedores activos de la sede donde se registra la orden */
+const attendedBy = ref('')
+const effectiveSede = computed(() => fixedSede.value ? sedeFija.value : orderSede.value)
+const { options: vendorOptions, loading: vendorsLoading } = useVendedores(effectiveSede)
+// Si cambia la sede (admin), el vendedor elegido puede no pertenecer a ella
+watch(vendorOptions, (opts) => {
+  if (!opts.some(o => o.value === attendedBy.value)) attendedBy.value = opts.length === 1 ? opts[0].value : ''
+})
+
+const canSubmit = computed(() => orderCode.value.trim() && orderName.value.trim() && attendedBy.value)
+const missingHint = computed(() => {
+  if (!orderCode.value.trim()) return ''
+  const missing = [!orderName.value.trim() && 'el cliente', !attendedBy.value && 'quién atendió'].filter(Boolean)
+  return missing.length ? `falta ${missing.join(' y ')}` : ''
+})
 
 /* Duplicados: el backend responde 409 y aquí se pide confirmación */
 const dup     = ref(null)
@@ -360,8 +396,8 @@ const submit = async (confirm = false) => {
     const result = await ordersStore.registerOrder(
       orderCode.value,
       orderName.value,
-      orderSede.value,
-      auth.user?.name,
+      effectiveSede.value,
+      attendedBy.value,
       photos.value.map(p => p.file),
       { confirmDuplicate: confirm === true }
     )
@@ -375,6 +411,7 @@ const submit = async (confirm = false) => {
     dupOpen.value = false
 
     orderCode.value = ''; orderName.value = ''
+    attendedBy.value = vendorOptions.value.length === 1 ? vendorOptions.value[0].value : ''
     if (!fixedSede.value) orderSede.value = sedes.value[0]?.code || ''
     clearPhotos()
   } finally {
@@ -558,6 +595,8 @@ html.dark .doccam-btn { color:#bcd6f7; }
 /* Campos */
 .fields-block { display: flex; flex-direction: column; gap: 0.9rem; }
 .field        { display: flex; flex-direction: column; gap: 0.3rem; }
+.fhint        { font-size: 0.75rem; color: var(--ink-500); }
+.fhint a      { margin-left: 0.25rem; font-weight: 600; color: var(--accent); }
 
 .flabel {
   font-size: 0.8rem;

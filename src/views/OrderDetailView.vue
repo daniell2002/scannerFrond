@@ -57,7 +57,11 @@
             </div>
             <div class="det-card-body">
               <div class="field-row">
-                <span class="field-k">Responsable</span>
+                <span class="field-k">Atendido por</span>
+                <span class="field-v">{{ order.attendedBy || '—' }}</span>
+              </div>
+              <div class="field-row">
+                <span class="field-k">Registrada por</span>
                 <span class="field-v">{{ order.operator }}</span>
               </div>
               <div class="field-row">
@@ -194,7 +198,7 @@
           <span v-else-if="f.seenAt">
             Vista por {{ f.recipientName }} el {{ fmtFbDate(f.seenAt) }} a las {{ fmtFbTime(f.seenAt) }} · aún sin corregir
           </span>
-          <span v-else>{{ f.recipientName || 'El operario' }} aún no la ha visto</span>
+          <span v-else>{{ f.recipientName || 'El supervisor' }} aún no la ha visto</span>
         </footer>
       </article>
     </div>
@@ -243,7 +247,7 @@
       <button class="btn-cancel" @click="fbModalOpen = false">Cancelar</button>
       <button class="btn-save" :disabled="!fbComment.trim() || fbSending" @click="sendFeedback">
         <i class="fas" :class="fbSending ? 'fa-spinner fa-spin' : 'fa-paper-plane'"></i>
-        {{ fbSending ? 'Enviando…' : 'Enviar al operario' }}
+        {{ fbSending ? 'Enviando…' : 'Enviar al supervisor' }}
       </button>
     </template>
   </BaseModal>
@@ -315,8 +319,8 @@ onMounted(async () => {
 const reviews  = useReviewsStore()
 const auth     = useAuthStore()
 const feedback = useFeedbackStore()
-// Admin y supervisor revisan órdenes y envían observaciones
-const isAdmin  = computed(() => ['admin', 'supervisor'].includes(auth.user?.role))
+// Solo el admin revisa órdenes y envía observaciones (el supervisor las registra)
+const isAdmin  = computed(() => auth.user?.role === 'admin')
 watch(order, o => {
   if (o?.pendingReview && isAdmin.value) reviews.markReviewed(o.code)
 }, { immediate: true })
@@ -328,10 +332,10 @@ const loadFeedback = async () => {
 }
 watch(() => route.params.code, loadFeedback, { immediate: true })
 
-/* Pendientes: el operario no las ha visto (para el admin: aún no las lee el operario) */
+/* Pendientes: el supervisor no las ha visto (para el admin: aún no las lee el supervisor) */
 const unseenCount = computed(() => feedbackList.value.filter(f => !f.seenAt).length)
 const unseenTitle = computed(() => isAdmin.value
-  ? 'El operario aún no ha visto la retroalimentación'
+  ? 'El supervisor aún no ha visto la retroalimentación'
   : 'Tienes retroalimentación sin revisar')
 
 const initials  = (name = '') => name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
@@ -344,7 +348,7 @@ const newIds = ref(new Set())   // resaltadas como "Nueva" mientras el modal est
 function openFeedbackHistory() {
   newIds.value = new Set(feedbackList.value.filter(f => !f.seenAt).map(f => f.id))
   fbHistoryOpen.value = true
-  // Solo el destinatario (operario) puede marcarlas como vistas
+  // Solo el destinatario (supervisor) puede marcarlas como vistas
   if (!isAdmin.value) feedback.markSeen(feedbackList.value)
 }
 

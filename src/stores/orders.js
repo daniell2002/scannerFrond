@@ -20,7 +20,7 @@ export const useOrdersStore = defineStore('orders', () => {
   const lastScannedCode = ref('')
   const notify          = useNotificationsStore()
 
-  const filters = ref({ query: '', sede: 'all', operator: 'all', status: 'all', priority: 'all' })
+  const filters = ref({ query: '', sede: 'all', attendedBy: 'all', status: 'all', priority: 'all' })
 
   const sedeMap = computed(() =>
     sedesData.value.reduce((acc, s) => { acc[s.code] = s; return acc }, {})
@@ -52,7 +52,7 @@ export const useOrdersStore = defineStore('orders', () => {
     return todayOrders.value.filter(o => {
       const matchQ    = !query || String(o.code).toUpperCase().includes(query)
       const matchSede = filters.value.sede     === 'all' || o.sede     === filters.value.sede
-      const matchOp   = filters.value.operator === 'all' || o.operator === filters.value.operator
+      const matchOp   = filters.value.attendedBy === 'all' || String(o.attendedById) === filters.value.attendedBy
       const matchSt   = filters.value.status   === 'all' || o.status   === filters.value.status
       const matchPr   = filters.value.priority === 'all' || o.priority === filters.value.priority
       return matchQ && matchSede && matchOp && matchSt && matchPr
@@ -128,7 +128,7 @@ export const useOrdersStore = defineStore('orders', () => {
     }
   }
 
-  async function registerOrder(rawCode, productName, sedeCode = 'BOG', operatorName, photoFiles = [], { confirmDuplicate = false } = {}) {
+  async function registerOrder(rawCode, productName, sedeCode = 'BOG', attendedById, photoFiles = [], { confirmDuplicate = false } = {}) {
     const code = normalizeValue(rawCode)
     if (!code) {
       lastScanMessage.value = 'Ingresa una orden de producción válida.'
@@ -140,7 +140,7 @@ export const useOrdersStore = defineStore('orders', () => {
       form.append('code', code)
       form.append('product', productName?.trim() || 'Sin nombre')
       form.append('sede', sedeCode)
-      if (operatorName) form.append('operator', operatorName)
+      if (attendedById) form.append('attendedById', attendedById)
       ;(Array.isArray(photoFiles) ? photoFiles : [photoFiles]).filter(Boolean).forEach(f => form.append('photos', f))
       if (confirmDuplicate) form.append('confirmDuplicate', 'true')
 
@@ -194,7 +194,7 @@ export const useOrdersStore = defineStore('orders', () => {
     ordersWithMeta.value.find(o => normalizeValue(o.code) === normalizeValue(code))
 
   const setFilter    = (key, val) => { filters.value[key] = val }
-  const resetFilters = () => { filters.value = { query: '', sede: 'all', operator: 'all', status: 'all', priority: 'all' } }
+  const resetFilters = () => { filters.value = { query: '', sede: 'all', attendedBy: 'all', status: 'all', priority: 'all' } }
 
   return {
     availablePriorities, availableStatuses,

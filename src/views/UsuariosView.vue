@@ -6,10 +6,13 @@
       :breadcrumb="['Conexa', 'Administración', 'Usuarios']"
       icon="fa-users"
       title="Usuarios del sistema"
-      subtitle="Cuentas de acceso, roles y permisos"
+      subtitle="Cuentas de acceso, roles, permisos y vendedores"
     >
       <template #action>
-        <button class="btn-add" @click="openCreate"><i class="fas fa-user-plus me-2"></i>Nuevo usuario</button>
+        <div class="us-head-actions">
+          <button class="btn-add-outline" @click="openCreate('vendedor')"><i class="fas fa-user-tag me-2"></i>Nuevo vendedor</button>
+          <button v-if="isAdmin" class="btn-add" @click="openCreate()"><i class="fas fa-user-plus me-2"></i>Nuevo usuario</button>
+        </div>
       </template>
     </PageHeader>
 
@@ -29,8 +32,9 @@
           <span class="kpi-value">{{ counts.active }}</span>
         </div>
         <div class="kpi">
-          <div class="kpi-head"><span class="kpi-label">Administradores</span><i class="fas fa-shield-halved kpi-icon"></i></div>
-          <span class="kpi-value">{{ counts.admins }}</span>
+          <div class="kpi-head"><span class="kpi-label">Vendedores</span><i class="fas fa-user-tag kpi-icon"></i></div>
+          <span class="kpi-value">{{ counts.vendors }}</span>
+          <span class="kpi-foot">Para "Atendido por"; no ingresan al sistema</span>
         </div>
         <div class="kpi">
           <div class="kpi-head"><span class="kpi-label">Sin correo</span><i class="fas fa-envelope kpi-icon"></i></div>
@@ -83,7 +87,8 @@
                         {{ u.name }}
                         <span v-if="u.id === me" class="us-you">Tú</span>
                       </span>
-                      <span v-if="u.email" class="us-email">{{ u.email }}</span>
+                      <span v-if="u.role === 'vendedor'" class="us-email"><i class="fas fa-lock me-1"></i>Sin acceso al sistema</span>
+                      <span v-else-if="u.email" class="us-email">{{ u.email }}</span>
                       <span v-else class="us-email is-missing" :title="`Ingresa con el usuario «${u.username}»`"><i class="fas fa-exclamation-circle"></i>Sin correo · usuario {{ u.username }}</span>
                     </div>
                   </div>
@@ -100,6 +105,7 @@
                 </td>
                 <td>
                   <span v-if="u.role === 'admin'" class="cell-muted">Acceso total</span>
+                  <span v-else-if="u.role === 'vendedor'" class="cell-muted">—</span>
                   <div v-else-if="u.permissions?.length" class="us-mods">
                     <span v-for="p in u.permissions" :key="p" class="us-mod" :title="moduleLabel(p)">
                       <i class="fas" :class="moduleIcon(p)"></i>
@@ -109,18 +115,18 @@
                 </td>
                 <td>
                   <span v-if="!u.active" class="status-chip is-off"><i class="fas fa-circle"></i>Inactivo</span>
-                  <span v-else-if="u.mustChangePassword" class="status-chip is-pending" title="Debe cambiar su contraseña temporal al ingresar">
+                  <span v-else-if="u.mustChangePassword && u.role !== 'vendedor'" class="status-chip is-pending" title="Debe cambiar su contraseña temporal al ingresar">
                     <i class="fas fa-key"></i>Clave temporal
                   </span>
                   <span v-else class="status-chip is-on"><i class="fas fa-circle"></i>Activo</span>
                 </td>
-                <td class="cell-muted us-last">{{ fmtLastLogin(u.lastLoginAt) }}</td>
+                <td class="cell-muted us-last">{{ u.role === 'vendedor' ? '—' : fmtLastLogin(u.lastLoginAt) }}</td>
                 <td>
                   <div class="row-actions">
                     <button class="btn-icon btn-edit" :disabled="!canManage(u)" @click="openEdit(u)" :title="canManage(u) ? 'Editar usuario' : 'Solo un administrador puede editar esta cuenta'">
                       <i class="fas fa-pen"></i>
                     </button>
-                    <button class="btn-icon btn-warn" :disabled="!canManage(u)" @click="askReset(u)" title="Restablecer contraseña">
+                    <button class="btn-icon btn-warn" :disabled="!canManage(u) || u.role === 'vendedor'" @click="askReset(u)" :title="u.role === 'vendedor' ? 'Los vendedores no tienen contraseña' : 'Restablecer contraseña'">
                       <i class="fas fa-key"></i>
                     </button>
                     <button
@@ -153,9 +159,11 @@
   <!-- ── Crear / editar usuario ── -->
   <BaseModal
     v-model="modal"
-    :icon="editing ? 'fa-user-edit' : 'fa-user-plus'"
-    :title="editing ? 'Editar usuario' : 'Nuevo usuario'"
-    :subtitle="editing ? editing.email || editing.name : 'Se creará el acceso con su correo electrónico'"
+    :icon="isVendorForm ? 'fa-user-tag' : editing ? 'fa-user-edit' : 'fa-user-plus'"
+    :title="isVendorForm ? (editing ? 'Editar vendedor' : 'Nuevo vendedor') : (editing ? 'Editar usuario' : 'Nuevo usuario')"
+    :subtitle="isVendorForm
+      ? 'Aparecerá en «Atendido por» al registrar órdenes de su sede'
+      : editing ? editing.email || editing.name : 'Se creará el acceso con su correo electrónico'"
     max-width="1100px"
   >
     <div class="uf-grid">
@@ -171,12 +179,12 @@
           </div>
         </div>
         <div class="mf-field">
-          <label class="mf-label">Correo electrónico <span class="mf-req">*</span></label>
+          <label class="mf-label">Correo electrónico <span v-if="!isVendorForm" class="mf-req">*</span><small v-else class="text-muted"> (opcional)</small></label>
           <div class="mf-wrap">
             <i class="fas fa-envelope mf-icon"></i>
             <input v-model="form.email" type="email" class="mf-inp" placeholder="juan.perez@empresa.com" autocomplete="off" />
           </div>
-          <span class="mf-hint">Ingresará al sistema con su correo.</span>
+          <span class="mf-hint">{{ isVendorForm ? 'Solo como dato de contacto: el vendedor no ingresa al sistema.' : 'Ingresará al sistema con su correo.' }}</span>
         </div>
         <div v-if="form.role !== 'admin'" class="mf-field">
           <label class="mf-label">Sede asignada <span class="mf-req">*</span></label>
@@ -186,11 +194,11 @@
             icon="fa-building"
             placeholder="Selecciona una sede…"
           />
-          <span class="mf-hint">{{ isAdmin ? 'Trabajará solo con las órdenes de esta sede.' : 'Solo puedes asignar operarios a tu sede.' }}</span>
+          <span class="mf-hint">{{ isVendorForm ? 'Solo aparecerá al registrar órdenes de esta sede.' : 'Trabajará solo con las órdenes de esta sede.' }}</span>
         </div>
 
-        <!-- Crear: contraseña inicial -->
-        <template v-if="!editing">
+        <!-- Crear: contraseña inicial (el vendedor no tiene) -->
+        <template v-if="!editing && !isVendorForm">
           <p class="us-section">Contraseña de acceso</p>
           <div class="pw-seg" role="radiogroup" aria-label="Contraseña inicial">
             <button type="button" role="radio" :aria-checked="form.passwordMode === 'auto'" :class="{ 'is-active': form.passwordMode === 'auto' }" @click="form.passwordMode = 'auto'">
@@ -215,7 +223,7 @@
         </template>
 
         <!-- Editar: información de la cuenta -->
-        <template v-else>
+        <template v-else-if="editing && !isVendorForm">
           <p class="us-section">Cuenta</p>
           <dl class="uf-account">
             <div><dt>Usuario interno</dt><dd>{{ editing.username }}</dd></div>
@@ -236,7 +244,8 @@
             type="button"
             class="role-card"
             :class="{ 'is-active': form.role === opt.value }"
-            :disabled="editing && editing.id === me && opt.value !== 'admin'"
+            :disabled="roleLocked(opt.value)"
+            :title="roleLocked(opt.value) && editing?.id !== me ? 'Un vendedor no tiene cuenta de acceso: crea un usuario aparte' : ''"
             @click="setRole(opt.value)"
           >
             <span class="role-card-icon"><i class="fas" :class="opt.icon"></i></span>
@@ -262,7 +271,12 @@
       <!-- ── Columna derecha: módulos ── -->
       <section class="uf-col">
 
-        <template v-if="form.role !== 'admin'">
+        <div v-if="isVendorForm" class="uf-admin-note">
+          <i class="fas fa-user-tag"></i>
+          <span>El vendedor no tiene módulos ni contraseña. Solo se registra para elegirlo en <strong>Atendido por</strong> y filtrar las órdenes por él.</span>
+        </div>
+
+        <template v-else-if="form.role !== 'admin'">
           <div class="uf-mods-head">
             <p class="us-section">Módulos habilitados</p>
             <span class="uf-mods-actions">
@@ -309,7 +323,7 @@
       <button class="btn-cancel" @click="modal = false">Cancelar</button>
       <button class="btn-save" :disabled="saving" @click="save">
         <i class="fas" :class="saving ? 'fa-spinner fa-spin' : 'fa-check'"></i>
-        {{ saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear usuario' }}
+        {{ saving ? 'Guardando…' : editing ? 'Guardar cambios' : isVendorForm ? 'Registrar vendedor' : 'Crear usuario' }}
       </button>
     </template>
   </BaseModal>
@@ -373,7 +387,7 @@ import BaseModal from '../components/BaseModal.vue'
 import BaseSelect from '../components/BaseSelect.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PasswordStrength from '../components/PasswordStrength.vue'
-import { MODULE_GROUPS, ALL_MODULES, DEFAULT_OPERARIO_PERMISSIONS, ROLES, moduleByKey, roleByValue, roleLabel, accessSummary } from '../utils/modules'
+import { MODULE_GROUPS, ALL_MODULES, ROLES, moduleByKey, roleByValue, roleLabel, accessSummary } from '../utils/modules'
 
 const users   = ref([])
 const sedes   = ref([])
@@ -384,17 +398,17 @@ const auth    = useAuthStore()
 const me      = computed(() => auth.user?.id)
 
 // Solo el admin asigna roles de supervisor o administrador
-const visibleRoles = computed(() => ROLES.filter(r => r.value === 'operario' || isAdmin.value))
+const visibleRoles = computed(() => ROLES.filter(r => r.value === 'vendedor' || isAdmin.value))
 
 // Misma definición que el menú lateral (utils/modules.js)
 const moduleLabel = (k) => moduleByKey(k)?.label || k
 const moduleIcon  = (k) => moduleByKey(k)?.icon || 'fa-puzzle-piece'
 
-/* Delegación: quien gestiona usuarios sin ser admin solo maneja operarios de su
-   sede y solo otorga módulos que él mismo tiene (el backend lo valida igual). */
+/* Delegación: quien gestiona usuarios sin ser admin solo maneja los vendedores
+   de su sede (el backend lo valida igual). */
 const isAdmin  = computed(() => auth.user?.role === 'admin')
 const canGrant = (key) => isAdmin.value || (auth.user?.permissions || []).includes(key)
-const canManage = (u) => isAdmin.value || (u.role === 'operario' && u.sede === auth.user?.sede)
+const canManage = (u) => isAdmin.value || (u.role === 'vendedor' && u.sede === auth.user?.sede)
 const sedeOptions = computed(() => sedes.value
   .filter(s => isAdmin.value || s.code === auth.user?.sede)
   .map(s => ({ value: s.code, label: `${s.name} — ${s.city}` })))
@@ -430,7 +444,7 @@ const roleFilterOptions = [
   { value: 'all', label: 'Todos los roles' },
   { value: 'admin', label: 'Administradores' },
   { value: 'supervisor', label: 'Supervisores' },
-  { value: 'operario', label: 'Operarios' },
+  { value: 'vendedor', label: 'Vendedores' },
 ]
 const statusFilterOptions = [
   { value: 'all', label: 'Todos' },
@@ -449,8 +463,8 @@ const filtered = computed(() => {
 
 const counts = computed(() => ({
   active:  users.value.filter(u => u.active).length,
-  admins:  users.value.filter(u => u.role === 'admin').length,
-  noEmail: users.value.filter(u => !u.email).length,
+  vendors: users.value.filter(u => u.role === 'vendedor').length,
+  noEmail: users.value.filter(u => !u.email && u.role !== 'vendedor').length,
 }))
 
 /* ── Crear / editar ── */
@@ -459,18 +473,26 @@ const editing    = ref(null)
 const saving     = ref(false)
 const modalError = ref('')
 const showPass   = ref(false)
-const emptyForm  = () => ({
-  name: '', email: '', role: 'operario',
-  permissions: DEFAULT_OPERARIO_PERMISSIONS.filter(k => canGrant(k)),
+const emptyForm  = (role = isAdmin.value ? 'supervisor' : 'vendedor') => ({
+  name: '', email: '', role,
+  permissions: (roleByValue(role)?.preset || []).filter(k => canGrant(k)),
   sede: isAdmin.value ? '' : (auth.user?.sede || ''),
   passwordMode: 'auto', password: '',
 })
 const form = ref(emptyForm())
+const isVendorForm = computed(() => form.value.role === 'vendedor')
 
-function openCreate() {
+/* Un vendedor no tiene cuenta de acceso: al editar no cambia a otro rol ni al revés.
+   Tampoco puedes quitarte a ti mismo el rol de administrador. */
+const roleLocked = (role) => !!editing.value && (
+  (editing.value.id === me.value && role !== 'admin') ||
+  ((editing.value.role === 'vendedor') !== (role === 'vendedor'))
+)
+
+function openCreate(role) {
   editing.value    = null
   showPass.value   = false
-  form.value       = emptyForm()
+  form.value       = emptyForm(typeof role === 'string' ? role : undefined)
   modalError.value = ''
   modal.value      = true
 }
@@ -513,10 +535,11 @@ async function save() {
   const f = form.value
   const email = f.email.trim().toLowerCase()
 
+  const vendor = f.role === 'vendedor'
   if (!f.name.trim())        return (modalError.value = 'Ingresa el nombre completo.')
-  if (!EMAIL_RE.test(email)) return (modalError.value = 'Ingresa un correo electrónico válido.')
+  if ((!vendor || email) && !EMAIL_RE.test(email)) return (modalError.value = 'Ingresa un correo electrónico válido.')
   if (f.role !== 'admin' && !f.sede) return (modalError.value = `Selecciona la sede del ${roleLabel(f.role).toLowerCase()}.`)
-  if (!editing.value && f.passwordMode === 'manual' && f.password.length < 8)
+  if (!editing.value && !vendor && f.passwordMode === 'manual' && f.password.length < 8)
     return (modalError.value = 'La contraseña debe tener al menos 8 caracteres.')
 
   const payload = {
@@ -524,7 +547,7 @@ async function save() {
     email,
     role: f.role,
     sede: f.role !== 'admin' ? f.sede : null,
-    permissions: f.role !== 'admin' ? f.permissions : [],
+    permissions: f.role !== 'admin' && !vendor ? f.permissions : [],
   }
 
   saving.value = true
@@ -535,12 +558,13 @@ async function save() {
       notify.success(`Los datos de ${updated.name} fueron actualizados.`, { title: 'Usuario actualizado' })
       modal.value = false
     } else {
-      if (f.passwordMode === 'manual') payload.password = f.password
+      if (f.passwordMode === 'manual' && !vendor) payload.password = f.password
       const { tempPassword, ...user } = await api.post('/api/users', payload)
       users.value.push(user)
       users.value.sort((a, b) => a.name.localeCompare(b.name))
       modal.value = false
-      if (tempPassword) showCredentials(user, tempPassword, true)
+      if (vendor) notify.success(`${user.name} ya aparece en «Atendido por» de ${sedeName(user.sede)}.`, { title: 'Vendedor registrado' })
+      else if (tempPassword) showCredentials(user, tempPassword, true)
       else notify.success(`${user.name} ya puede ingresar con su correo.`, { title: 'Usuario creado' })
     }
   } catch (e) { modalError.value = e.message }
@@ -612,9 +636,13 @@ function askToggle(u) {
     title: off ? 'Desactivar acceso' : 'Reactivar acceso',
     action: off ? 'Desactivar' : 'Reactivar',
     danger: off,
-    text: off
-      ? `<strong>${esc(u.name)}</strong> no podrá ingresar y su sesión actual se cerrará. Sus órdenes y su historial se conservan.`
-      : `<strong>${esc(u.name)}</strong> podrá volver a ingresar con su correo y contraseña.`,
+    text: u.role === 'vendedor'
+      ? (off
+        ? `<strong>${esc(u.name)}</strong> dejará de aparecer en «Atendido por». Las órdenes que atendió se conservan y se pueden seguir filtrando.`
+        : `<strong>${esc(u.name)}</strong> volverá a aparecer en «Atendido por».`)
+      : off
+        ? `<strong>${esc(u.name)}</strong> no podrá ingresar y su sesión actual se cerrará. Sus órdenes y su historial se conservan.`
+        : `<strong>${esc(u.name)}</strong> podrá volver a ingresar con su correo y contraseña.`,
     run: async () => {
       const updated = await api.patch(`/api/users/${u.id}`, { active: !off })
       replaceUser(updated)
@@ -745,7 +773,8 @@ html.dark .uf-summary-title { color:#93c5fd; }
 
 .badge-pill.role-admin      { background:var(--accent-soft); color:var(--accent-strong); }
 .badge-pill.role-supervisor { background:color-mix(in srgb, var(--series-7) 12%, transparent); color:var(--series-7); }
-.badge-pill.role-operario   { background:var(--surface); color:var(--ink-700); }
+.badge-pill.role-vendedor   { background:var(--surface); color:var(--ink-700); }
+.us-head-actions { display:flex; gap:0.5rem; flex-wrap:wrap; }
 .uf-roles .role-card { min-width:0; }
 @media (max-width: 480px) { .uf-roles { grid-template-columns:1fr; } }
 
