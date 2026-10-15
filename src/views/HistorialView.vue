@@ -4,14 +4,14 @@
 
       <!-- Cabecera -->
       <PageHeader
-        :breadcrumb="['Conexa', 'Historial', isOperario ? 'Mi historial' : 'Historial de órdenes']"
+        :breadcrumb="['Conexa', 'Historial', 'Historial de órdenes']"
         icon="fa-history"
-        :title="isOperario ? 'Mi historial' : 'Historial de órdenes'"
-        :subtitle="isOperario ? `Órdenes registradas por ${authStore.user?.name}` : hoy"
+        title="Historial de órdenes"
+        :subtitle="isAdmin ? hoy : `${mySedeName} · ${hoy}`"
       />
 
-      <!-- Resumen personal del operario -->
-      <div v-if="isOperario" class="kpi-grid">
+      <!-- Resumen de la sede del supervisor -->
+      <div v-if="!isAdmin" class="kpi-grid">
         <div class="kpi">
           <div class="kpi-head"><span class="kpi-label">Total registradas</span><i class="fas fa-database kpi-icon"></i></div>
           <span class="kpi-value">{{ myStats.total }}</span>
@@ -34,8 +34,8 @@
       <div class="table-card">
         <div class="table-card-head">
           <span class="table-card-head-title">
-            <i class="fas" :class="isOperario ? 'fa-user-clock' : 'fa-archive'"></i>
-            {{ isOperario ? 'Mis órdenes' : 'Órdenes anteriores' }}
+            <i class="fas fa-archive"></i>
+            Órdenes anteriores
             <span class="table-card-count">{{ filteredHistoricalOrders.length }}</span>
           </span>
           <div class="table-card-search">
@@ -58,12 +58,11 @@
               style="min-width:180px"
             />
             <BaseSelect
-              v-if="isReviewer"
-              v-model="filters.operator"
-              :options="operatorOptions"
-              icon="fa-user"
+              v-model="filters.attendedBy"
+              :options="vendorOptions"
+              icon="fa-user-tag"
               size="sm"
-              style="min-width:180px"
+              style="min-width:200px"
             />
           </div>
         </div>
@@ -73,13 +72,13 @@
           <div class="log-empty-icon">
             <i class="fas fa-clipboard-list"></i>
           </div>
-          <p class="log-empty-title">{{ isOperario ? 'Aún no has registrado órdenes' : 'Sin historial aún' }}</p>
+          <p class="log-empty-title">{{ noFilters ? 'Sin historial aún' : 'Sin resultados' }}</p>
           <p class="log-empty-sub">
-            {{ isOperario
-              ? 'Cada orden que registres en el Scanner aparecerá aquí.'
-              : 'Las órdenes de días anteriores aparecen aquí automáticamente.' }}
+            {{ noFilters
+              ? 'Las órdenes de días anteriores aparecen aquí automáticamente.'
+              : 'No hay órdenes para los filtros seleccionados.' }}
           </p>
-          <RouterLink to="/scanner" class="btn btn-primary">
+          <RouterLink v-if="noFilters && authStore.hasPermission('scanner')" to="/scanner" class="btn btn-primary">
             <i class="fas fa-qrcode me-2"></i>Ir al Scanner
           </RouterLink>
         </div>
@@ -91,10 +90,11 @@
               <tr>
                 <th>Orden producción</th>
                 <th>Cliente</th>
-                <th v-if="!isOperario">Sede</th>
-                <th v-if="!isOperario">Operador</th>
+                <th v-if="isAdmin">Sede</th>
+                <th>Atendido por</th>
+                <th>Registró</th>
                 <th>Fecha</th>
-                <th v-if="isOperario">Estado</th>
+                <th v-if="!isAdmin">Estado</th>
                 <th></th>
               </tr>
             </thead>
@@ -102,18 +102,19 @@
               <tr v-for="item in filteredHistoricalOrders" :key="item.code">
                 <td><span class="code-tag">{{ item.code }}</span></td>
                 <td><span class="h-product">{{ item.product }}</span></td>
-                <td v-if="!isOperario">
+                <td v-if="isAdmin">
                   <span
                     class="sede-chip"
                     :style="{ '--dot': sedeColor(item.sede) }"
                   >{{ item.sedeInfo.name }}</span>
                 </td>
-                <td v-if="!isOperario" class="cell-muted">{{ item.operator }}</td>
+                <td>{{ item.attendedBy || '—' }}</td>
+                <td class="cell-muted">{{ item.operator }}</td>
                 <td>
                   <span class="h-date">{{ fmtDate(item.scannedAt || item.scheduledAt) }}</span>
-                  <span v-if="isOperario" class="h-time">{{ fmtTime(item.scannedAt || item.scheduledAt) }}</span>
+                  <span class="h-time">{{ fmtTime(item.scannedAt || item.scheduledAt) }}</span>
                 </td>
-                <td v-if="isOperario">
+                <td v-if="!isAdmin">
                   <OrderStatus :order="item" />
                 </td>
                 <td>
@@ -149,17 +150,15 @@ import { useAuthStore } from '../stores/auth'
 import { generateOrderPdf } from '../utils/orderPdf'
 import BaseSelect from '../components/BaseSelect.vue'
 import PageHeader from '../components/PageHeader.vue'
-import { useResponsables } from '../utils/useResponsables'
-import { isOwnOrder } from '../utils/ownOrders'
+import { useVendedores } from '../utils/useVendedores'
 import OrderStatus from '../components/OrderStatus.vue'
 
 const ordersStore = useOrdersStore()
 const authStore    = useAuthStore()
 const { historicalOrders, orders, sedes } = storeToRefs(ordersStore)
-const isOperario = computed(() => authStore.user?.role === 'operario')
-// Admin y supervisor ven a todo el equipo (el supervisor, solo su sede)
-const isReviewer = computed(() => ['admin', 'supervisor'].includes(authStore.user?.role))
+// El admin ve todas las sedes; el supervisor, solo la suya (el backend ya filtra)
 const isAdmin    = computed(() => authStore.user?.role === 'admin')
+const mySedeName = computed(() => sedes.value.find(s => s.code === authStore.user?.sede)?.name || 'Tu sede')
 
 onMounted(() => ordersStore.fetchOrders())
 
@@ -182,43 +181,38 @@ async function generatePdf(order) {
   }
 }
 
-const filters = ref({ query: '', sede: 'all', operator: 'all' })
+const filters   = ref({ query: '', sede: 'all', attendedBy: 'all' })
+const noFilters = computed(() => !filters.value.query.trim() && filters.value.sede === 'all' && filters.value.attendedBy === 'all')
 
-const { options: operatorOptions } = useResponsables(
-  historicalOrders, computed(() => filters.value.sede), isReviewer
+// Filtro por el vendedor que atendió (no por el usuario que registró)
+const { filterOptions: vendorOptions } = useVendedores(
+  computed(() => filters.value.sede), { includeInactive: true }
 )
 
 function onSedeChange(v) {
   filters.value.sede = v
-  filters.value.operator = 'all'
+  filters.value.attendedBy = 'all'
 }
 
-/* Operario: solo las órdenes que él registró (incluidas las de hoy) */
-const myOrders = computed(() =>
-  orders.value
-    .filter(o => isOwnOrder(o, authStore.user))
-    .sort((a, b) => new Date(b.scannedAt || b.scheduledAt) - new Date(a.scannedAt || a.scheduledAt))
-)
-
+/* Resumen de la sede (el supervisor solo recibe las órdenes de su sede) */
 const myStats = computed(() => {
   const now = new Date()
   const dateOf = (o) => new Date(o.scannedAt || o.scheduledAt)
   return {
-    total:   myOrders.value.length,
-    month:   myOrders.value.filter(o => { const d = dateOf(o); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() }).length,
-    today:   myOrders.value.filter(o => dateOf(o).toDateString() === now.toDateString()).length,
-    pending: myOrders.value.filter(o => o.pendingReview).length,
+    total:   orders.value.length,
+    month:   orders.value.filter(o => { const d = dateOf(o); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() }).length,
+    today:   orders.value.filter(o => dateOf(o).toDateString() === now.toDateString()).length,
+    pending: orders.value.filter(o => o.pendingReview).length,
   }
 })
 
 const filteredHistoricalOrders = computed(() => {
   const query = filters.value.query.trim().toUpperCase()
-  const source = isOperario.value ? myOrders.value : historicalOrders.value
-  return source.filter(o => {
+  return historicalOrders.value.filter(o => {
     const matchQ    = !query || String(o.code).toUpperCase().includes(query)
     const matchSede = filters.value.sede === 'all' || o.sede === filters.value.sede
-    const matchOp   = filters.value.operator === 'all' || o.operator === filters.value.operator
-    return matchQ && matchSede && matchOp
+    const matchVend = filters.value.attendedBy === 'all' || String(o.attendedById) === filters.value.attendedBy
+    return matchQ && matchSede && matchVend
   })
 })
 

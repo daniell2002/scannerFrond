@@ -51,7 +51,7 @@
           </p>
         </template>
 
-        <!-- ── Operario: retroalimentación recibida ── -->
+        <!-- ── Supervisor: retroalimentación recibida ── -->
         <template v-else>
           <div class="nbell-head">
             <span class="nbell-title">Retroalimentación</span>
@@ -107,8 +107,8 @@ const router      = useRouter()
 const { total, orders } = storeToRefs(reviews)
 const { items: fbItems, unseen } = storeToRefs(feedback)
 
-// Admin y supervisor revisan órdenes; el operario recibe observaciones
-const isAdmin = computed(() => ['admin', 'supervisor'].includes(auth.user?.role))
+// El admin revisa órdenes; el supervisor (quien las registra) recibe observaciones
+const isAdmin = computed(() => auth.user?.role === 'admin')
 
 const root = ref(null)
 const open = ref(false)
@@ -146,7 +146,7 @@ function onClickOutside(e) {
 }
 
 onMounted(() => {
-  // Sin el módulo de observaciones el operario no recibe retroalimentación
+  // Sin el módulo de observaciones el supervisor no recibe retroalimentación
   if (isAdmin.value) reviews.start()
   else if (auth.hasPermission('observaciones')) feedback.start()
   document.addEventListener('mousedown', onClickOutside)

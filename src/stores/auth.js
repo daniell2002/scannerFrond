@@ -41,12 +41,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = () => !!user.value
   const isAdmin         = () => user.value?.role === 'admin'
-  const isOperario      = () => user.value?.role === 'operario'
   const hasPermission   = (module) => {
     if (!user.value) return false
     if (user.value.role === 'admin') return true
     return (user.value.permissions || []).includes(module)
   }
 
-  return { user, login, changePassword, setSession, logout, isAuthenticated, isAdmin, isOperario, hasPermission }
+  return { user, login, changePassword, setSession, logout, isAuthenticated, isAdmin, hasPermission }
 })

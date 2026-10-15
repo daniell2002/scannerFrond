@@ -17,8 +17,8 @@ export const routes = [
   { path: '/scanner',       name: 'scanner',       component: ScannerView,      meta: { permission: 'scanner' } },
   { path: '/ordenes',       name: 'ordenes',       component: OrdenesView,      meta: { permission: 'ordenes' } },
   { path: '/historial',     name: 'historial',     component: HistorialView,    meta: { permission: 'historial' } },
-  // Bandeja de observaciones: solo operarios (el admin las ve en cada orden)
-  { path: '/observaciones', name: 'observaciones', component: ObservacionesView, meta: { permission: 'observaciones', operarioOnly: true } },
+  // Bandeja de observaciones: la recibe quien registra órdenes (el admin las ve en cada orden)
+  { path: '/observaciones', name: 'observaciones', component: ObservacionesView, meta: { permission: 'observaciones', hiddenForAdmin: true } },
   { path: '/estadisticas',  name: 'estadisticas',  component: EstadisticasView, meta: { permission: 'estadisticas' } },
   { path: '/orden/:code',   name: 'order-detail',  component: OrderDetailView,  meta: { permission: 'ordenes' } },
   { path: '/sedes',         name: 'sedes',         component: SedesView,        meta: { permission: 'sedes' } },
@@ -48,7 +48,7 @@ export function setupGuard(router) {
       return dest ?? undefined
     }
 
-    if (to.meta.operarioOnly && user?.role === 'admin') return firstAllowedRoute(user)
+    if (to.meta.hiddenForAdmin && user?.role === 'admin') return firstAllowedRoute(user)
 
     // Verificar permiso del módulo (admin siempre pasa)
     if (to.meta.permission && user?.role !== 'admin') {

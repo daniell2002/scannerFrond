@@ -4,9 +4,9 @@
 
       <!-- Cabecera -->
       <PageHeader
-        :breadcrumb="['Conexa', 'Órdenes', isOperario ? 'Mis órdenes del día' : 'Órdenes del día']"
+        :breadcrumb="['Conexa', 'Órdenes', 'Órdenes del día']"
         icon="fa-layer-group"
-        :title="isOperario ? 'Mis órdenes del día' : 'Órdenes del día'"
+        title="Órdenes del día"
         :subtitle="new Date().toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long' })"
       >
         <template #action>
@@ -18,7 +18,7 @@
       <div class="table-card">
         <div class="table-card-head">
           <span class="table-card-head-title">
-            <i class="fas fa-layer-group"></i>{{ isOperario ? 'Registradas por ti hoy' : 'Órdenes' }}
+            <i class="fas fa-layer-group"></i>{{ isAdmin ? 'Órdenes' : `Órdenes de ${mySedeName}` }}
             <span class="table-card-count">{{ rows.length }}</span>
           </span>
           <div class="table-card-search">
@@ -42,13 +42,12 @@
               style="min-width:180px"
             />
             <BaseSelect
-              v-if="isReviewer"
-              :model-value="filters.operator"
-              @update:model-value="v => ordersStore.setFilter('operator', v)"
-              :options="operatorOptions"
-              icon="fa-user"
+              :model-value="filters.attendedBy"
+              @update:model-value="v => ordersStore.setFilter('attendedBy', v)"
+              :options="vendorOptions"
+              icon="fa-user-tag"
               size="sm"
-              style="min-width:180px"
+              style="min-width:200px"
             />
           </div>
         </div>
@@ -56,11 +55,11 @@
         <div v-if="!rows.length" class="table-empty">
           <i class="fas fa-inbox"></i>
           <p>
-            {{ isOperario && !filters.query
-              ? 'Aún no has registrado órdenes hoy.'
+            {{ noFilters
+              ? 'Aún no se han registrado órdenes hoy.'
               : 'No hay órdenes para los filtros seleccionados.' }}
           </p>
-          <RouterLink v-if="isOperario && !filters.query" to="/scanner" class="btn-save mt-2">
+          <RouterLink v-if="noFilters && authStore.hasPermission('scanner')" to="/scanner" class="btn-save mt-2">
             <i class="fas fa-camera-retro me-2"></i>Registrar una orden
           </RouterLink>
         </div>
@@ -71,10 +70,11 @@
               <tr>
                 <th>Orden producción</th>
                 <th>Cliente</th>
-                <th v-if="!isOperario">Sede</th>
-                <th v-if="!isOperario">Operador</th>
+                <th v-if="isAdmin">Sede</th>
+                <th>Atendido por</th>
+                <th>Registró</th>
                 <th>Hora</th>
-                <th v-if="isOperario">Estado</th>
+                <th v-if="!isAdmin">Estado</th>
                 <th></th>
               </tr>
             </thead>
@@ -82,15 +82,16 @@
               <tr v-for="item in rows" :key="item.code">
                 <td><span class="code-tag">{{ item.code }}</span></td>
                 <td><span class="ord-product">{{ item.product }}</span></td>
-                <td v-if="!isOperario">
+                <td v-if="isAdmin">
                   <span
                     class="sede-chip"
                     :style="{ '--dot': sedeColor(item.sede) }"
                   >{{ item.sedeInfo.name }}</span>
                 </td>
-                <td v-if="!isOperario" class="cell-muted">{{ item.operator }}</td>
+                <td>{{ item.attendedBy || '—' }}</td>
+                <td class="cell-muted">{{ item.operator }}</td>
                 <td><span class="ord-time">{{ fmtTime(item.scannedAt || item.scheduledAt) }}</span></td>
-                <td v-if="isOperario">
+                <td v-if="!isAdmin">
                   <OrderStatus :order="item" />
                 </td>
                 <td>
@@ -126,32 +127,26 @@ import { useAuthStore } from '../stores/auth'
 import { generateOrderPdf } from '../utils/orderPdf'
 import BaseSelect from '../components/BaseSelect.vue'
 import PageHeader from '../components/PageHeader.vue'
-import { useResponsables } from '../utils/useResponsables'
-import { isOwnOrder } from '../utils/ownOrders'
+import { useVendedores } from '../utils/useVendedores'
 import OrderStatus from '../components/OrderStatus.vue'
 
 const ordersStore = useOrdersStore()
 const authStore   = useAuthStore()
-const { filteredOrders, filters, loading, sedes, todayOrders } = storeToRefs(ordersStore)
-const isOperario  = computed(() => authStore.user?.role === 'operario')
-// Admin y supervisor ven a todo el equipo (el supervisor, solo su sede)
-const isReviewer = computed(() => ['admin', 'supervisor'].includes(authStore.user?.role))
-const isAdmin     = computed(() => authStore.user?.role === 'admin')
+const { filteredOrders, filters, sedes } = storeToRefs(ordersStore)
+// El admin ve todas las sedes; el supervisor, solo la suya (el backend ya filtra)
+const isAdmin    = computed(() => authStore.user?.role === 'admin')
+const mySedeName = computed(() => sedes.value.find(s => s.code === authStore.user?.sede)?.name || 'tu sede')
+const rows       = filteredOrders
+const noFilters  = computed(() => !filters.value.query && filters.value.attendedBy === 'all')
 
-// Operario: solo las órdenes del día que él registró
-const rows = computed(() =>
-  isOperario.value
-    ? filteredOrders.value.filter(o => isOwnOrder(o, authStore.user))
-    : filteredOrders.value
-)
-
-const { options: operatorOptions } = useResponsables(
-  todayOrders, computed(() => filters.value.sede), isReviewer
+// Filtro por el vendedor que atendió (no por el usuario que registró)
+const { filterOptions: vendorOptions } = useVendedores(
+  computed(() => filters.value.sede), { includeInactive: true }
 )
 
 function onSedeChange(v) {
   ordersStore.setFilter('sede', v)
-  ordersStore.setFilter('operator', 'all')
+  ordersStore.setFilter('attendedBy', 'all')
 }
 
 onMounted(() => {

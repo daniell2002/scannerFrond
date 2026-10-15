@@ -16,7 +16,7 @@
     <!-- Mis indicadores -->
     <div class="kpi-grid">
       <div class="kpi">
-        <div class="kpi-head"><span class="kpi-label">Registraste hoy</span><i class="fas fa-calendar-day kpi-icon"></i></div>
+        <div class="kpi-head"><span class="kpi-label">Registradas hoy</span><i class="fas fa-calendar-day kpi-icon"></i></div>
         <span class="kpi-value">{{ stats.today }}</span>
         <span class="kpi-foot">
           <template v-if="stats.yesterday">Ayer: {{ stats.yesterday }}</template>
@@ -45,7 +45,7 @@
       <div v-else class="kpi">
         <div class="kpi-head"><span class="kpi-label">Total registradas</span><i class="fas fa-database kpi-icon"></i></div>
         <span class="kpi-value">{{ stats.total }}</span>
-        <span class="kpi-foot">Desde que usas el sistema</span>
+        <span class="kpi-foot">En {{ sedeName }}</span>
       </div>
     </div>
 
@@ -55,8 +55,8 @@
       <section class="panel">
         <header class="panel-head">
           <div>
-            <h2 class="panel-title">Mis últimas órdenes</h2>
-            <p class="panel-sub">Las 8 más recientes que registraste</p>
+            <h2 class="panel-title">Últimas órdenes</h2>
+            <p class="panel-sub">Las 8 más recientes de {{ sedeName }}</p>
           </div>
           <RouterLink v-if="auth.hasPermission('historial')" to="/historial" class="panel-link">
             Ver historial <i class="fas fa-arrow-right ms-1"></i>
@@ -64,7 +64,7 @@
         </header>
         <div v-if="!recent.length" class="table-empty">
           <i class="fas fa-inbox"></i>
-          <p>Aún no has registrado órdenes.</p>
+          <p>Aún no hay órdenes registradas en tu sede.</p>
         </div>
         <div v-else class="table-responsive">
           <table class="data-table">
@@ -72,6 +72,7 @@
               <tr>
                 <th>Orden</th>
                 <th>Cliente</th>
+                <th>Atendido por</th>
                 <th>Fecha</th>
                 <th>Estado</th>
               </tr>
@@ -84,6 +85,7 @@
               >
                 <td><span class="code-tag">{{ o.code }}</span></td>
                 <td class="cell-bold">{{ o.product }}</td>
+                <td>{{ o.attendedBy || '—' }}</td>
                 <td class="cell-muted">{{ fmtWhen(o.scannedAt || o.scheduledAt) }}</td>
                 <td><OrderStatus :order="o" /></td>
               </tr>
@@ -132,7 +134,6 @@ import { RouterLink, useRouter } from 'vue-router'
 import { useOrdersStore } from '../stores/orders'
 import { useAuthStore } from '../stores/auth'
 import { useFeedbackStore } from '../stores/feedback'
-import { isOwnOrder } from '../utils/ownOrders'
 import PageHeader from './PageHeader.vue'
 import OrderStatus from './OrderStatus.vue'
 
@@ -151,16 +152,15 @@ const canScan = computed(() => auth.hasPermission('scanner'))
 const canOpen = computed(() => auth.hasPermission('ordenes'))
 const canObs  = computed(() => auth.hasPermission('observaciones'))
 
-const firstName = computed(() => (auth.user?.name || 'operario').split(' ')[0])
+const firstName = computed(() => (auth.user?.name || 'supervisor').split(' ')[0])
 const sedeName  = computed(() => sedes.value.find(s => s.code === auth.user?.sede)?.name || auth.user?.sede || 'Sin sede')
 const hoy = new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
 
 const dateOf = (o) => new Date(o.scannedAt || o.scheduledAt)
 const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x }
 
-const mine = computed(() =>
-  orders.value.filter(o => isOwnOrder(o, auth.user)).sort((a, b) => dateOf(b) - dateOf(a))
-)
+// El backend ya limita las órdenes del supervisor a su sede
+const mine = computed(() => [...orders.value].sort((a, b) => dateOf(b) - dateOf(a)))
 
 const stats = computed(() => {
   const today = startOfDay(new Date())
