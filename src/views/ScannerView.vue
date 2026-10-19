@@ -30,26 +30,20 @@
             <button
               type="button"
               class="doccam-btn"
-              :disabled="ocrState==='scanning' || photos.length >= MAX_PHOTOS"
+              :disabled="photos.length >= MAX_PHOTOS"
               @click="docCamOpen = true"
             >
-              <span v-if="ocrState==='scanning'" class="spin-icon"></span>
-              <i v-else class="fas" :class="photos.length ? 'fa-plus' : 'fa-camera-retro'"></i>
-              {{ ocrState==='scanning'          ? 'Leyendo código de la orden…'
-                 : photos.length >= MAX_PHOTOS  ? `Máximo ${MAX_PHOTOS} páginas`
-                 : photos.length                ? `Agregar otra página (${photos.length + 1})`
-                 :                               'Capturar con escáner de documentos' }}
+              <i class="fas" :class="photos.length ? 'fa-plus' : 'fa-camera-retro'"></i>
+              {{ photos.length >= MAX_PHOTOS  ? `Máximo ${MAX_PHOTOS} páginas`
+                 : photos.length              ? `Agregar otra página (${photos.length + 1})`
+                 :                             'Capturar con escáner de documentos' }}
             </button>
-            <p v-if="ocrState==='done' || ocrState==='manual'" class="ocr-status" :class="ocrState">
-              <i class="fas" :class="ocrState==='done' ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
-              {{ ocrState==='done' ? `Código detectado: ${orderCode}` : 'No se detectó el código — ingrésalo a mano' }}
-            </p>
 
             <!-- Campos -->
             <div class="fields-block">
 
               <div class="field">
-                <label class="flabel">Orden de producción</label>
+                <label class="flabel">Orden de producción <span class="freq">&nbsp;*</span></label>
                 <div class="mf-wrap">
                   <i class="fas fa-barcode mf-icon"></i>
                   <input
@@ -58,7 +52,6 @@
                     class="mf-inp"
                     placeholder="OP-240501 ó 7465"
                   />
-                  <span v-if="ocrState==='done'" class="fauto-chip">auto</span>
                   <button
                     v-if="orderCode"
                     type="button"
@@ -148,7 +141,7 @@
               <i class="fas fa-file-invoice"></i>
             </div>
             <p class="empty-title">Sin orden cargada</p>
-            <p class="empty-body">Captura la orden de producción con el escáner de documentos. El sistema leerá el código desde la esquina superior derecha. Si no lo detecta, ingrésalo manualmente.</p>
+            <p class="empty-body">Captura la orden de producción con el escáner de documentos e ingresa su código, el cliente y quién la atendió.</p>
           </div>
 
           <!-- Foto sin registrar -->
@@ -157,9 +150,6 @@
               <span>
                 <i class="fas fa-file-image me-2"></i>Vista previa
                 <template v-if="photos.length > 1"> · página {{ selectedIdx + 1 }} de {{ photos.length }}</template>
-              </span>
-              <span class="photo-viewer-badge">
-                <i class="fas fa-crosshairs me-1"></i>Código en esquina superior derecha
               </span>
             </div>
             <img :src="orderPhoto" class="photo-viewer-img" alt="Orden" />
@@ -183,7 +173,6 @@
                 v-if="photos.length < MAX_PHOTOS"
                 type="button"
                 class="pv-add"
-                :disabled="ocrState==='scanning'"
                 title="Agregar otra página"
                 @click="docCamOpen = true"
               >
@@ -337,7 +326,6 @@ const MAX_PHOTOS  = 10
 const photos      = ref([])   // [{ file, url }]
 const selectedIdx = ref(0)
 const orderPhoto  = computed(() => photos.value[selectedIdx.value]?.url || '')
-const ocrState   = ref('idle')
 const submitting = ref(false)
 
 // La sede fija del supervisor o el fallback 'BOG' pueden no existir entre las sedes reales
@@ -347,8 +335,6 @@ watch(sedes, (list) => {
     orderSede.value = list[0].code
   }
 }, { immediate: true })
-
-let tess = null
 
 const lastOrder = computed(() =>
   lastScannedCode.value
@@ -421,13 +407,6 @@ const submit = async (confirm = false) => {
 
 const confirmDuplicate = () => submit(true)
 
-/* OCR */
-const loadTess = async () => {
-  if (tess) return tess
-  const { createWorker } = await import('tesseract.js')
-  tess = await createWorker('eng')
-  return tess
-}
 /* Cámara de documentos (KB-700 u otra webcam USB) */
 const docCamOpen = ref(false)
 
@@ -435,41 +414,19 @@ function clearPhotos() {
   photos.value.forEach(p => URL.revokeObjectURL(p.url))
   photos.value = []
   selectedIdx.value = 0
-  ocrState.value = 'idle'
 }
 
 function removePhoto(i) {
   URL.revokeObjectURL(photos.value[i].url)
   photos.value.splice(i, 1)
   if (selectedIdx.value >= photos.value.length) selectedIdx.value = Math.max(0, photos.value.length - 1)
-  if (!photos.value.length) ocrState.value = 'idle'
 }
 
-const processPhoto = async (file) => {
+const processPhoto = (file) => {
   if (photos.value.length >= MAX_PHOTOS) return
   const url = URL.createObjectURL(file)
   photos.value.push({ file, url })
   selectedIdx.value = photos.value.length - 1
-
-  // El OCR solo se intenta mientras no se haya detectado el código
-  // (normalmente está en la primera página).
-  if (ocrState.value === 'done') return
-  ocrState.value = 'scanning'
-  try {
-    const img = await new Promise((res, rej) => { const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url })
-    const cx=Math.floor(img.width*.48), cw=img.width-cx, ch=Math.floor(img.height*.28), S=3
-    const canvas=document.createElement('canvas'); canvas.width=Math.round(cw*S); canvas.height=Math.round(ch*S)
-    const ctx=canvas.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height)
-    ctx.drawImage(img,cx,0,cw,ch,0,0,canvas.width,canvas.height)
-    const px=ctx.getImageData(0,0,canvas.width,canvas.height),d=px.data
-    for(let i=0;i<d.length;i+=4){const r=d[i],g=d[i+1],b=d[i+2];d[i]=d[i+1]=d[i+2]=(r>130&&g<110&&b<110&&r-g>40)||(0.299*r+0.587*g+0.114*b)<110?0:255}
-    ctx.putImageData(px,0,0)
-    const {data}=await(await loadTess()).recognize(canvas)
-    const found=new Set()
-    ;[/OP[-\s]?\d{3,8}/gi,/\b\d{3,6}\b/g].forEach(re=>{const m=data.text.match(re);if(m)m.forEach(c=>found.add(c.replace(/\s/g,'').toUpperCase()))})
-    const codes=[...found].filter(c=>c.length>=3)
-    if(codes.length){orderCode.value=codes[0];ocrState.value='done'}else ocrState.value='manual'
-  } catch { ocrState.value='manual' }
 }
 
 </script>
@@ -582,16 +539,6 @@ html.dark .doccam-btn { color:#bcd6f7; }
 }
 .scan-alert i { color: var(--ink-400); margin-top: 0.15rem; }
 
-/* Resultado de la lectura del código */
-.ocr-status {
-  display: flex; align-items: center; gap: 0.45rem;
-  margin: 0; padding: 0.5rem 0.8rem;
-  border-radius: 0.5rem;
-  font-size: 0.75rem; font-weight: 600;
-}
-.ocr-status.done   { color: var(--success); background: rgba(46,139,87,0.08); }
-.ocr-status.manual { color: var(--accent-strong); background: rgba(42,120,214,0.08); }
-
 /* Campos */
 .fields-block { display: flex; flex-direction: column; gap: 0.9rem; }
 .field        { display: flex; flex-direction: column; gap: 0.3rem; }
@@ -606,21 +553,6 @@ html.dark .doccam-btn { color:#bcd6f7; }
   align-items: center;
   gap: 0.4rem;
 }
-.fauto-chip {
-  pointer-events: none;
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-  background: rgba(46,139,87,0.12);
-  color: var(--success);
-  font-size: 0.6rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03rem;
-  padding: 0.2rem 0.5rem;
-  border-radius: 999px;
-  margin-right: 0.5rem;
-}
 .freq  { color: var(--danger); }
 
 /* CTA */
@@ -630,10 +562,6 @@ html.dark .doccam-btn { color:#bcd6f7; }
   text-align: center; font-size: 0.68rem;
   color: var(--danger); margin: 0.35rem 0 0;
 }
-
-/* Spinners */
-.spin-icon { display:inline-block; width:1rem; height:1rem; border:2px solid rgba(0,0,0,0.1); border-top-color:var(--accent); border-radius:50%; animation:sp 0.7s linear infinite; }
-@keyframes sp { to { transform:rotate(360deg); } }
 
 /* ══ PANEL DERECHO ══ */
 .right-panel { min-height: 380px; }
@@ -671,12 +599,6 @@ html.dark .doccam-btn { color:#bcd6f7; }
   padding:0.75rem 1rem; background:var(--surface); border-bottom:1px solid var(--line);
   font-size:0.72rem; font-weight:700; color:var(--ink-700);
   text-transform:uppercase; letter-spacing:0.07rem; flex-wrap:wrap; gap:0.5rem;
-}
-.photo-viewer-badge {
-  display: inline-flex; align-items: center;
-  background: rgba(42,120,214,0.1); color: var(--accent-strong);
-  padding: 0.3rem 0.7rem; border-radius: 999px;
-  text-transform:none; letter-spacing:0; font-weight:600; font-size: 0.72rem;
 }
 .photo-viewer-img { width:100%; max-height:520px; object-fit: contain; display: block; }
 

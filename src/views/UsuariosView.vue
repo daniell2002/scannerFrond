@@ -9,10 +9,11 @@
       subtitle="Cuentas de acceso, roles, permisos y vendedores"
     >
       <template #action>
-        <div class="us-head-actions">
-          <button class="btn-add-outline" @click="openCreate('vendedor')"><i class="fas fa-user-tag me-2"></i>Nuevo vendedor</button>
-          <button v-if="isAdmin" class="btn-add" @click="openCreate()"><i class="fas fa-user-plus me-2"></i>Nuevo usuario</button>
-        </div>
+        <!-- El rol (supervisor, vendedor o admin) se elige dentro del formulario.
+             Quien no es admin solo puede registrar vendedores. -->
+        <button class="btn-add" @click="openCreate">
+          <i class="fas me-2" :class="isAdmin ? 'fa-user-plus' : 'fa-user-tag'"></i>{{ isAdmin ? 'Nuevo usuario' : 'Nuevo vendedor' }}
+        </button>
       </template>
     </PageHeader>
 
@@ -489,10 +490,10 @@ const roleLocked = (role) => !!editing.value && (
   ((editing.value.role === 'vendedor') !== (role === 'vendedor'))
 )
 
-function openCreate(role) {
+function openCreate() {
   editing.value    = null
   showPass.value   = false
-  form.value       = emptyForm(typeof role === 'string' ? role : undefined)
+  form.value       = emptyForm()
   modalError.value = ''
   modal.value      = true
 }
@@ -774,7 +775,6 @@ html.dark .uf-summary-title { color:#93c5fd; }
 .badge-pill.role-admin      { background:var(--accent-soft); color:var(--accent-strong); }
 .badge-pill.role-supervisor { background:color-mix(in srgb, var(--series-7) 12%, transparent); color:var(--series-7); }
 .badge-pill.role-vendedor   { background:var(--surface); color:var(--ink-700); }
-.us-head-actions { display:flex; gap:0.5rem; flex-wrap:wrap; }
 .uf-roles .role-card { min-width:0; }
 @media (max-width: 480px) { .uf-roles { grid-template-columns:1fr; } }
 

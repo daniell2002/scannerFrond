@@ -5,10 +5,14 @@
     icon="fa-camera"
     title="Capturar con escáner"
     subtitle="Coloca la orden bajo la cámara de documentos"
-    max-width="860px"
+    fullscreen
   >
-    <!-- Selector de cámara -->
+    <!-- Ayuda + selector de cámara en una sola fila para dejarle el alto a la imagen -->
     <div class="dc-toolbar">
+      <p class="dc-hint">
+        <i class="fas fa-circle-info me-1"></i>
+        <template v-if="resolution">{{ resolution }} · </template>Encuadra la hoja completa y asegúrate de que se vea nítida.
+      </p>
       <BaseSelect
         v-if="devices.length > 1"
         :model-value="deviceId"
@@ -28,6 +32,7 @@
       <video
         ref="video"
         class="dc-video"
+        :class="{ 'is-sideways': rotation % 180 !== 0 }"
         :style="{ transform: `rotate(${rotation}deg)` }"
         autoplay
         playsinline
@@ -45,15 +50,7 @@
           <p>Conectando con la cámara…</p>
         </template>
       </div>
-
-      <!-- Guía: el código de la orden va en la esquina superior derecha -->
-      <div v-if="streaming" class="dc-guide"><span>Código</span></div>
     </div>
-
-    <p v-if="resolution" class="dc-hint">
-      <i class="fas fa-circle-info me-1"></i>
-      {{ resolution }} · Asegúrate de que el código de la esquina superior derecha se vea nítido.
-    </p>
 
     <template #footer>
       <button class="btn-cancel" @click="close">Cancelar</button>
@@ -182,14 +179,18 @@ onBeforeUnmount(stopStream)
 </script>
 
 <style scoped>
-.dc-toolbar { display:flex; align-items:center; gap:0.6rem; margin-bottom:0.75rem; justify-content:flex-end; }
+.dc-toolbar { display:flex; align-items:center; gap:0.6rem; flex-shrink:0; }
 
+/* La vista en vivo llena todo el alto libre del modal */
 .dc-stage {
-  position:relative; width:100%; aspect-ratio:4/3; overflow:hidden;
-  background:#0f172a; border-radius:0.65rem;
+  position:relative; width:100%; flex:1; min-height:0; overflow:hidden;
+  background:#0f172a; border-radius:0.5rem;
   display:grid; place-items:center;
+  container-type:size;
 }
-.dc-video { max-width:100%; max-height:100%; object-fit:contain; transition:transform 0.2s; }
+.dc-video { width:100%; height:100%; object-fit:contain; transition:transform 0.2s; }
+/* Girada 90°/270°: se intercambian ancho y alto para que siga cabiendo completa */
+.dc-video.is-sideways { width:100cqh; height:100cqw; }
 
 .dc-overlay {
   position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -199,17 +200,7 @@ onBeforeUnmount(stopStream)
 .dc-overlay p { margin:0; max-width:340px; }
 .dc-overlay .btn-cancel { color:#fff; border-color:rgba(255,255,255,0.35); }
 
-.dc-guide {
-  position:absolute; top:1%; right:1%; width:51%; height:27%;
-  border:2px dashed rgba(255,255,255,0.75); border-radius:0.5rem; pointer-events:none;
-}
-.dc-guide span {
-  position:absolute; top:-0.1rem; left:0.5rem; transform:translateY(-50%);
-  background:var(--accent); color:#fff; font-size:0.65rem; font-weight:700;
-  padding:0.1rem 0.45rem; border-radius:999px; letter-spacing:0.04rem; text-transform:uppercase;
-}
-
-.dc-hint { margin:0.6rem 0 0; font-size:0.75rem; color:var(--ink-500); }
+.dc-hint { flex:1; min-width:0; margin:0; font-size:0.75rem; color:var(--ink-500); }
 
 .spin-icon {
   width:1.6rem; height:1.6rem; border-radius:50%;

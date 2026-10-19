@@ -1,11 +1,11 @@
 <template>
   <Teleport to="body">
     <Transition name="bm">
-      <div v-if="modelValue" class="bm-overlay" @mousedown.self="close">
+      <div v-if="modelValue" class="bm-overlay" :class="{ 'bm-full': fullscreen }" @mousedown.self="close">
         <div
           class="bm-box"
-          :class="`bm-tone-${tone}`"
-          :style="{ maxWidth }"
+          :class="[`bm-tone-${tone}`, { 'bm-full': fullscreen }]"
+          :style="fullscreen ? null : { maxWidth }"
           role="dialog"
           aria-modal="true"
           :aria-labelledby="titleId"
@@ -49,6 +49,8 @@ const props = defineProps({
   maxWidth:   { type: String, default: '580px' },
   // Color del ícono: accent | danger | success | warning
   tone:       { type: String, default: 'accent' },
+  // Ocupa casi toda la pantalla con márgenes mínimos (p. ej. la cámara)
+  fullscreen: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -148,6 +150,17 @@ onBeforeUnmount(() => {
   border-top: 1px solid var(--line);
 }
 
+/* ── Pantalla completa: márgenes mínimos y el contenido llena el alto ── */
+.bm-overlay.bm-full { padding: 0.5rem; }
+.bm-box.bm-full {
+  max-width: none; height: 100%; max-height: none;
+  border-radius: 0.75rem;
+}
+.bm-full .bm-head { padding: 0.6rem 1rem 0; }
+.bm-full .bm-icon { width: 2rem; height: 2rem; min-width: 2rem; font-size: 0.8rem; }
+.bm-full .bm-body { padding: 0.5rem 0.75rem; gap: 0.5rem; overflow: hidden; }
+.bm-full .bm-foot { padding: 0.5rem 0.75rem; }
+
 /* ── Celular: hoja que sube desde abajo ── */
 @media (max-width: 575px) {
   .bm-overlay { align-items: flex-end; padding: 0; }
@@ -161,6 +174,11 @@ onBeforeUnmount(() => {
   .bm-body { padding: 1rem 1.25rem 1.25rem; }
   .bm-foot { padding: 0.85rem 1.25rem calc(0.85rem + env(safe-area-inset-bottom)); }
   .bm-foot > :deep(*) { flex: 1 1 0; justify-content: center; }
+  .bm-overlay.bm-full { padding: 0; }
+  .bm-box.bm-full { max-height: 100dvh; height: 100dvh; border-radius: 0; }
+  .bm-full .bm-head { padding: 0.6rem 0.75rem 0; }
+  .bm-full .bm-body { padding: 0.5rem; }
+  .bm-full .bm-foot { padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom)); }
 }
 
 /* ── Animación ── */
