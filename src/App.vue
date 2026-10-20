@@ -2,6 +2,7 @@
 
   <NotificationsTray />
   <PasswordChangeRequired v-if="!isLogin && auth.user?.mustChangePassword" />
+  <SessionTimeout v-if="!isLogin && auth.user" />
   <FeedbackAlert v-if="!isLogin && auth.user && auth.user.role !== 'admin' && auth.hasPermission('observaciones') && !auth.user.mustChangePassword" />
 
   <!-- ── Login: sin layout ── -->
@@ -161,6 +162,7 @@ import NotificationsTray from './components/NotificationsTray.vue'
 import NotificationsBell from './components/NotificationsBell.vue'
 import FeedbackAlert from './components/FeedbackAlert.vue'
 import PasswordChangeRequired from './components/PasswordChangeRequired.vue'
+import SessionTimeout from './components/SessionTimeout.vue'
 import PasswordStrength from './components/PasswordStrength.vue'
 import BaseModal from './components/BaseModal.vue'
 
