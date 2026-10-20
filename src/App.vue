@@ -88,7 +88,7 @@
               <div v-if="userMenuOpen" class="user-menu-dropdown">
                 <div class="user-menu-head">
                   <strong>{{ auth.user?.name }}</strong>
-                  <span>{{ auth.user?.email || roleLabel }}</span>
+                  <span>{{ auth.user?.username || auth.user?.email || roleLabel }}</span>
                 </div>
                 <button class="user-menu-item" @click="openSettings">
                   <i class="fas fa-user-gear"></i>Ajustes de la cuenta
@@ -111,11 +111,20 @@
 
   <BaseModal v-model="settingsOpen" icon="fa-cog" title="Ajustes de la cuenta" subtitle="Actualiza tu correo o contraseña">
     <div class="mf-field">
-      <label class="mf-label">Correo</label>
+      <label class="mf-label">Usuario</label>
+      <div class="mf-wrap">
+        <i class="fas fa-at mf-icon"></i>
+        <input :value="auth.user?.username" type="text" class="mf-inp" readonly />
+      </div>
+      <span class="mf-hint">Con él ingresas al sistema. Solo un administrador lo puede cambiar.</span>
+    </div>
+    <div class="mf-field">
+      <label class="mf-label">Correo <small v-if="!isAdmin" class="text-muted">(opcional)</small></label>
       <div class="mf-wrap">
         <i class="fas fa-envelope mf-icon"></i>
         <input v-model="settingsForm.email" type="email" class="mf-inp" placeholder="correo@ejemplo.com" />
       </div>
+      <span class="mf-hint">Ahí te llega el enlace si olvidas la contraseña.</span>
     </div>
     <div class="mf-field">
       <label class="mf-label">Contraseña actual</label>

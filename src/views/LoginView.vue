@@ -32,12 +32,13 @@
         <form v-if="mode === 'forgot'" @submit.prevent="handleForgot" novalidate class="lc-form">
           <template v-if="!sent">
             <div class="mf-field">
-              <label class="mf-label">Correo electrónico</label>
+              <label class="mf-label">Usuario o correo</label>
               <div class="mf-wrap">
-                <i class="fas fa-envelope mf-icon"></i>
-                <input v-model="forgotEmail" type="email" inputmode="email" class="mf-inp"
-                  placeholder="nombre@empresa.com" autocomplete="email" autocapitalize="off" spellcheck="false" required />
+                <i class="fas fa-user mf-icon"></i>
+                <input v-model="forgotEmail" type="text" class="mf-inp"
+                  placeholder="laura.norte o nombre@empresa.com" autocomplete="username" autocapitalize="off" spellcheck="false" required />
               </div>
+              <span class="mf-hint">El enlace llega al correo registrado en la cuenta.</span>
             </div>
             <div v-if="error" class="alert alert-danger lc-error" role="alert">
               <i class="fas fa-circle-exclamation me-2"></i>{{ error }}
@@ -97,15 +98,14 @@
 
         <form v-else @submit.prevent="handleLogin" novalidate class="lc-form">
           <div class="mf-field">
-            <label class="mf-label">Correo electrónico</label>
+            <label class="mf-label">Usuario o correo</label>
             <div class="mf-wrap">
-              <i class="fas fa-envelope mf-icon"></i>
+              <i class="fas fa-user mf-icon"></i>
               <input
                 v-model="username"
                 type="text"
-                inputmode="email"
                 class="mf-inp"
-                placeholder="nombre@empresa.com"
+                placeholder="laura.norte o nombre@empresa.com"
                 autocomplete="username"
                 autocapitalize="off"
                 spellcheck="false"
@@ -135,7 +135,7 @@
           <div class="lc-row">
             <div class="form-check lc-remember">
               <input id="lc-remember" v-model="remember" class="form-check-input" type="checkbox" />
-              <label class="form-check-label" for="lc-remember">Recordar mi correo</label>
+              <label class="form-check-label" for="lc-remember">Recordarme</label>
             </div>
             <button type="button" class="lc-link" @click="goForgot">¿Olvidaste tu contraseña?</button>
           </div>
@@ -181,7 +181,7 @@ const mode   = computed(() => route.name === 'reset-password' ? 'reset' : forgot
 
 const heading = computed(() => ({
   login:  { title: 'Bienvenido de vuelta', desc: 'Ingresa tus credenciales para acceder al sistema' },
-  forgot: { title: 'Recuperar contraseña', desc: 'Te enviaremos un enlace a tu correo para crear una nueva' },
+  forgot: { title: 'Recuperar contraseña', desc: 'Te enviaremos un enlace al correo de tu cuenta para crear una nueva' },
   reset:  { title: 'Crea tu contraseña',   desc: 'Escribe la nueva contraseña para tu cuenta' },
 }[mode.value]))
 
@@ -195,7 +195,7 @@ const canReset = computed(() => newPassword.value.length >= 8 && newPassword.val
 function goForgot() {
   error.value = ''
   sent.value = ''
-  forgotEmail.value = username.value.includes('@') ? username.value.trim() : ''
+  forgotEmail.value = username.value.trim()
   forgot.value = true
 }
 
@@ -209,7 +209,7 @@ async function handleForgot() {
   error.value = ''
   loading.value = true
   try {
-    const { message } = await api.post('/api/auth/forgot-password', { email: forgotEmail.value.trim() })
+    const { message } = await api.post('/api/auth/forgot-password', { identifier: forgotEmail.value.trim() })
     sent.value = message
   } catch (e) {
     error.value = e.message || 'No fue posible enviar el enlace.'

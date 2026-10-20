@@ -39,8 +39,8 @@
         </div>
         <div class="kpi">
           <div class="kpi-head"><span class="kpi-label">Sin correo</span><i class="fas fa-envelope kpi-icon"></i></div>
-          <span class="kpi-value" :class="{ 'is-warn': counts.noEmail }">{{ counts.noEmail }}</span>
-          <span v-if="counts.noEmail" class="kpi-foot">Agrégales correo para que ingresen con él</span>
+          <span class="kpi-value">{{ counts.noEmail }}</span>
+          <span v-if="counts.noEmail" class="kpi-foot">No pueden recuperar su contraseña por correo</span>
         </div>
       </div>
 
@@ -89,8 +89,9 @@
                         <span v-if="u.id === me" class="us-you">Tú</span>
                       </span>
                       <span v-if="u.role === 'vendedor'" class="us-email"><i class="fas fa-lock me-1"></i>Sin acceso al sistema</span>
-                      <span v-else-if="u.email" class="us-email">{{ u.email }}</span>
-                      <span v-else class="us-email is-missing" :title="`Ingresa con el usuario «${u.username}»`"><i class="fas fa-exclamation-circle"></i>Sin correo · usuario {{ u.username }}</span>
+                      <span v-else class="us-email" :title="`Ingresa con el usuario «${u.username}»`">
+                        <i class="fas fa-at me-1"></i>{{ u.username }}<template v-if="u.email"> · {{ u.email }}</template>
+                      </span>
                     </div>
                   </div>
                 </td>
@@ -164,7 +165,7 @@
     :title="isVendorForm ? (editing ? 'Editar vendedor' : 'Nuevo vendedor') : (editing ? 'Editar usuario' : 'Nuevo usuario')"
     :subtitle="isVendorForm
       ? 'Aparecerá en «Atendido por» al registrar órdenes de su sede'
-      : editing ? editing.email || editing.name : 'Se creará el acceso con su correo electrónico'"
+      : editing ? `${editing.name} · ${editing.username}` : 'Ingresará al sistema con su nombre de usuario'"
     max-width="1100px"
   >
     <div class="uf-grid">
@@ -179,13 +180,27 @@
             <input v-model="form.name" type="text" class="mf-inp" placeholder="Juan Pérez" autocomplete="off" />
           </div>
         </div>
+        <div v-if="!isVendorForm" class="mf-field">
+          <label class="mf-label">Usuario <span class="mf-req">*</span></label>
+          <div class="mf-wrap">
+            <i class="fas fa-at mf-icon"></i>
+            <input v-model="form.username" type="text" class="mf-inp" placeholder="laura.norte" autocomplete="off"
+              autocapitalize="off" spellcheck="false" @input="onUsernameInput" />
+            <i v-if="usernameState.checking" class="fas fa-spinner fa-spin mf-icon uf-state"></i>
+            <i v-else-if="usernameState.ok" class="fas fa-circle-check mf-icon uf-state uf-ok"></i>
+          </div>
+          <span v-if="usernameState.error" class="mf-hint uf-bad">{{ usernameState.error }}</span>
+          <span v-else class="mf-hint">Con este usuario ingresará al sistema. Debe ser único.</span>
+        </div>
         <div class="mf-field">
-          <label class="mf-label">Correo electrónico <span v-if="!isVendorForm" class="mf-req">*</span><small v-else class="text-muted"> (opcional)</small></label>
+          <label class="mf-label">Correo electrónico
+            <span v-if="form.role === 'admin'" class="mf-req">*</span><small v-else class="text-muted"> (opcional)</small>
+          </label>
           <div class="mf-wrap">
             <i class="fas fa-envelope mf-icon"></i>
             <input v-model="form.email" type="email" class="mf-inp" placeholder="juan.perez@empresa.com" autocomplete="off" />
           </div>
-          <span class="mf-hint">{{ isVendorForm ? 'Solo como dato de contacto: el vendedor no ingresa al sistema.' : 'Ingresará al sistema con su correo.' }}</span>
+          <span class="mf-hint">{{ emailHint }}</span>
         </div>
         <div v-if="form.role !== 'admin'" class="mf-field">
           <label class="mf-label">Sede asignada <span class="mf-req">*</span></label>
@@ -227,7 +242,6 @@
         <template v-else-if="editing && !isVendorForm">
           <p class="us-section">Cuenta</p>
           <dl class="uf-account">
-            <div><dt>Usuario interno</dt><dd>{{ editing.username }}</dd></div>
             <div><dt>Estado</dt><dd>{{ !editing.active ? 'Inactivo' : editing.mustChangePassword ? 'Clave temporal pendiente' : 'Activo' }}</dd></div>
             <div><dt>Creado</dt><dd>{{ editing.createdAt ? fmtDate(editing.createdAt) : '—' }}</dd></div>
             <div><dt>Último acceso</dt><dd>{{ fmtLastLogin(editing.lastLoginAt) }}</dd></div>
@@ -342,8 +356,11 @@
       <p class="cred-intro">Comparte estos datos con <strong>{{ cred.name }}</strong>. Al ingresar se le pedirá crear su propia contraseña.</p>
       <div class="cred-box">
         <div class="cred-row">
-          <span class="cred-label">{{ cred.email ? 'Correo' : 'Usuario' }}</span>
-          <span class="cred-val">{{ cred.email || cred.username }}</span>
+          <span class="cred-label">Usuario</span>
+          <span class="cred-val">{{ cred.username }}</span>
+          <button type="button" class="btn-icon" title="Copiar usuario" @click="copy(cred.username, 'Usuario copiado')">
+            <i class="fas fa-copy"></i>
+          </button>
         </div>
         <div class="cred-row">
           <span class="cred-label">Contraseña temporal</span>
@@ -380,7 +397,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { api } from '../api'
 import { useNotificationsStore } from '../stores/notifications'
 import { useAuthStore } from '../stores/auth'
@@ -475,7 +492,7 @@ const saving     = ref(false)
 const modalError = ref('')
 const showPass   = ref(false)
 const emptyForm  = (role = isAdmin.value ? 'supervisor' : 'vendedor') => ({
-  name: '', email: '', role,
+  name: '', username: '', usernameTouched: false, email: '', role,
   permissions: (roleByValue(role)?.preset || []).filter(k => canGrant(k)),
   sede: isAdmin.value ? '' : (auth.user?.sede || ''),
   passwordMode: 'auto', password: '',
@@ -491,6 +508,7 @@ const roleLocked = (role) => !!editing.value && (
 )
 
 function openCreate() {
+  usernameState.value = { checking: false, ok: false, error: '' }
   editing.value    = null
   showPass.value   = false
   form.value       = emptyForm()
@@ -499,10 +517,11 @@ function openCreate() {
 }
 
 function openEdit(u) {
+  usernameState.value = { checking: false, ok: false, error: '' }
   editing.value    = u
   form.value       = {
     ...emptyForm(),
-    name: u.name, email: u.email || '', role: u.role, sede: u.sede || '',
+    name: u.name, username: u.username || '', usernameTouched: true, email: u.email || '', role: u.role, sede: u.sede || '',
     permissions: [...(u.permissions || [])],
   }
   modalError.value = ''
@@ -530,21 +549,85 @@ function togglePermission(key) {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{2,29}$/
+
+const emailHint = computed(() =>
+  isVendorForm.value ? 'Solo como dato de contacto: el vendedor no ingresa al sistema.'
+  : form.value.role === 'admin' ? 'Obligatorio y propio: lo necesita para recuperar su contraseña.'
+  : 'Puede ser el mismo para varios supervisores. Ahí llegan los enlaces para recuperar la contraseña.')
+
+/* ── Usuario: sugerido a partir del nombre y verificado mientras se escribe ── */
+const usernameState = ref({ checking: false, ok: false, error: '' })
+let usernameTimer = null
+
+function localUsernameError(u) {
+  if (!u) return ''
+  if (u.includes('@')) return 'El usuario no lleva @ (eso es un correo).'
+  if (!USERNAME_RE.test(u)) return 'Entre 3 y 30 caracteres: letras, números, punto, guion o guion bajo; sin espacios ni tildes.'
+  if (u.startsWith('vendedor.')) return 'Los usuarios que empiezan por "vendedor." están reservados.'
+  return ''
+}
+
+function checkUsername({ suggest = false } = {}) {
+  clearTimeout(usernameTimer)
+  const f = form.value
+  if (f.role === 'vendedor') return
+  const u = f.username.trim().toLowerCase()
+  const localErr = localUsernameError(u)
+  usernameState.value = { checking: false, ok: false, error: localErr }
+  if (localErr || (!u && !suggest)) return
+  usernameState.value.checking = true
+  usernameTimer = setTimeout(async () => {
+    try {
+      const params = new URLSearchParams({ u })
+      if (suggest) params.set('name', f.name)
+      if (editing.value) params.set('except', editing.value.id)
+      const r = await api.get(`/api/users/username-check?${params}`)
+      // Sin tocar el campo, se usa la sugerencia libre basada en el nombre
+      if (suggest && !form.value.usernameTouched && r.suggestion) {
+        form.value.username = r.suggestion
+        usernameState.value = { checking: false, ok: true, error: '' }
+      } else {
+        usernameState.value = { checking: false, ok: r.available, error: r.available ? '' : r.error || 'Ese usuario ya existe.' }
+      }
+    } catch {
+      usernameState.value = { checking: false, ok: false, error: '' }
+    }
+  }, 350)
+}
+
+function onUsernameInput() {
+  form.value.usernameTouched = true
+  form.value.username = form.value.username.toLowerCase().replace(/\s+/g, '.')
+  checkUsername()
+}
+
+// Al escribir el nombre de alguien nuevo se propone su usuario
+watch(() => [form.value.name, form.value.role], () => {
+  if (!editing.value && !form.value.usernameTouched && form.value.role !== 'vendedor' && form.value.name.trim().length >= 2)
+    checkUsername({ suggest: true })
+})
 
 async function save() {
   modalError.value = ''
   const f = form.value
   const email = f.email.trim().toLowerCase()
 
-  const vendor = f.role === 'vendedor'
+  const vendor   = f.role === 'vendedor'
+  const username = f.username.trim().toLowerCase()
   if (!f.name.trim())        return (modalError.value = 'Ingresa el nombre completo.')
-  if ((!vendor || email) && !EMAIL_RE.test(email)) return (modalError.value = 'Ingresa un correo electrónico válido.')
+  if (!vendor && !username)  return (modalError.value = 'Ingresa el nombre de usuario.')
+  if (!vendor && localUsernameError(username)) return (modalError.value = localUsernameError(username))
+  if (!vendor && usernameState.value.error) return (modalError.value = usernameState.value.error)
+  if (f.role === 'admin' && !email) return (modalError.value = 'El administrador necesita un correo para poder recuperar su contraseña.')
+  if (email && !EMAIL_RE.test(email)) return (modalError.value = 'Ingresa un correo electrónico válido.')
   if (f.role !== 'admin' && !f.sede) return (modalError.value = `Selecciona la sede del ${roleLabel(f.role).toLowerCase()}.`)
   if (!editing.value && !vendor && f.passwordMode === 'manual' && f.password.length < 8)
     return (modalError.value = 'La contraseña debe tener al menos 8 caracteres.')
 
   const payload = {
     name: f.name.trim(),
+    ...(vendor ? {} : { username }),
     email,
     role: f.role,
     sede: f.role !== 'admin' ? f.sede : null,
@@ -566,7 +649,7 @@ async function save() {
       modal.value = false
       if (vendor) notify.success(`${user.name} ya aparece en «Atendido por» de ${sedeName(user.sede)}.`, { title: 'Vendedor registrado' })
       else if (tempPassword) showCredentials(user, tempPassword, true)
-      else notify.success(`${user.name} ya puede ingresar con su correo.`, { title: 'Usuario creado' })
+      else notify.success(`${user.name} ya puede ingresar con el usuario «${user.username}».`, { title: 'Usuario creado' })
     }
   } catch (e) { modalError.value = e.message }
   finally     { saving.value = false }
@@ -582,7 +665,7 @@ function showCredentials(user, tempPassword, isNew) {
 }
 
 const credText = computed(() => cred.value
-  ? `Acceso a Conexa\nIngreso: ${window.location.origin}\n${cred.value.email ? 'Correo' : 'Usuario'}: ${cred.value.email || cred.value.username}\nContraseña temporal: ${cred.value.tempPassword}\n\nAl ingresar se te pedirá crear tu propia contraseña.`
+  ? `Acceso a Conexa\nIngreso: ${window.location.origin}\nUsuario: ${cred.value.username}\nContraseña temporal: ${cred.value.tempPassword}\n\nAl ingresar se te pedirá crear tu propia contraseña.`
   : '')
 
 async function copy(text, msg) {
@@ -643,7 +726,7 @@ function askToggle(u) {
         : `<strong>${esc(u.name)}</strong> volverá a aparecer en «Atendido por».`)
       : off
         ? `<strong>${esc(u.name)}</strong> no podrá ingresar y su sesión actual se cerrará. Sus órdenes y su historial se conservan.`
-        : `<strong>${esc(u.name)}</strong> podrá volver a ingresar con su correo y contraseña.`,
+        : `<strong>${esc(u.name)}</strong> podrá volver a ingresar con su usuario y contraseña.`,
     run: async () => {
       const updated = await api.patch(`/api/users/${u.id}`, { active: !off })
       replaceUser(updated)
@@ -700,6 +783,9 @@ function fmtLastLogin(d) {
 .us-name  { display:flex; align-items:center; gap:0.4rem; font-weight:700; color:var(--ink-900); font-size:0.875rem; }
 .us-you   { font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05rem; padding:0.1rem 0.4rem; border-radius:999px; background:var(--surface); color:var(--ink-500); }
 .us-email { font-size:0.78rem; color:var(--ink-500); }
+.uf-state { left: auto; right: 0.85rem; }
+.uf-ok { color: var(--success, #16a34a); }
+.uf-bad { color: var(--danger); }
 .us-email.is-missing { display:inline-flex; align-items:center; gap:0.3rem; color:var(--warning); white-space:nowrap; }
 
 tr.is-inactive td { opacity:0.55; }
