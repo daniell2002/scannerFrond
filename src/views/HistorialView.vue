@@ -8,7 +8,13 @@
         icon="fa-history"
         title="Historial de órdenes"
         :subtitle="isAdmin ? hoy : `${mySedeName} · ${hoy}`"
-      />
+      >
+        <template #action>
+          <button class="btn-add-outline" :disabled="exporting || !filteredHistoricalOrders.length" @click="exportExcel">
+            <i class="fas" :class="exporting ? 'fa-spinner fa-spin' : 'fa-file-excel'"></i>{{ exporting ? 'Generando…' : 'Exportar a Excel' }}
+          </button>
+        </template>
+      </PageHeader>
 
       <!-- Resumen de la sede del supervisor -->
       <div v-if="!isAdmin" class="kpi-grid">
@@ -60,10 +66,12 @@
             <BaseSelect
               v-model="filters.attendedBy"
               :options="vendorOptions"
+              searchable
               icon="fa-user-tag"
               size="sm"
               style="min-width:200px"
             />
+            <DateRangeFilter v-model:from="filters.from" v-model:to="filters.to" :max="yesterday" />
           </div>
         </div>
 
@@ -148,7 +156,11 @@ import { RouterLink } from 'vue-router'
 import { useOrdersStore } from '../stores/orders'
 import { useAuthStore } from '../stores/auth'
 import { generateOrderPdf } from '../utils/orderPdf'
+import { exportOrders } from '../utils/exportExcel'
+import { useNotificationsStore } from '../stores/notifications'
 import BaseSelect from '../components/BaseSelect.vue'
+import DateRangeFilter from '../components/DateRangeFilter.vue'
+import { inRange, dayKey } from '../utils/dates'
 import PageHeader from '../components/PageHeader.vue'
 import { useVendedores } from '../utils/useVendedores'
 import OrderStatus from '../components/OrderStatus.vue'
@@ -181,8 +193,25 @@ async function generatePdf(order) {
   }
 }
 
-const filters   = ref({ query: '', sede: 'all', attendedBy: 'all' })
-const noFilters = computed(() => !filters.value.query.trim() && filters.value.sede === 'all' && filters.value.attendedBy === 'all')
+// Exporta exactamente lo que se ve en la tabla (con los filtros aplicados)
+const notify    = useNotificationsStore()
+const exporting = ref(false)
+async function exportExcel() {
+  exporting.value = true
+  try {
+    await exportOrders(filteredHistoricalOrders.value, { name: 'historial' })
+  } catch {
+    notify.error('No fue posible generar el archivo de Excel.')
+  } finally {
+    exporting.value = false
+  }
+}
+
+const filters   = ref({ query: '', sede: 'all', attendedBy: 'all', from: '', to: '' })
+const noFilters = computed(() => !filters.value.query.trim() && filters.value.sede === 'all' && filters.value.attendedBy === 'all'
+  && !filters.value.from && !filters.value.to)
+// El historial llega hasta ayer
+const yesterday = dayKey(Date.now() - 86_400_000)
 
 // Filtro por el vendedor que atendió (no por el usuario que registró)
 const { filterOptions: vendorOptions } = useVendedores(
@@ -212,7 +241,8 @@ const filteredHistoricalOrders = computed(() => {
     const matchQ    = !query || String(o.code).toUpperCase().includes(query)
     const matchSede = filters.value.sede === 'all' || o.sede === filters.value.sede
     const matchVend = filters.value.attendedBy === 'all' || String(o.attendedById) === filters.value.attendedBy
-    return matchQ && matchSede && matchVend
+    const matchDate = inRange(o.scannedAt || o.scheduledAt, filters.value.from, filters.value.to)
+    return matchQ && matchSede && matchVend && matchDate
   })
 })
 

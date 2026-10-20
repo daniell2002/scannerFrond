@@ -7,7 +7,7 @@
         :breadcrumb="['Conexa', 'Órdenes', 'Órdenes del día']"
         icon="fa-layer-group"
         title="Órdenes del día"
-        :subtitle="new Date().toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long' })"
+        :subtitle="dayLabel"
       >
         <template #action>
           <button class="btn-add-outline" @click="ordersStore.resetFilters()"><i class="fas fa-filter-circle-xmark"></i>Limpiar filtros</button>
@@ -45,10 +45,17 @@
               :model-value="filters.attendedBy"
               @update:model-value="v => ordersStore.setFilter('attendedBy', v)"
               :options="vendorOptions"
+              searchable
               icon="fa-user-tag"
               size="sm"
               style="min-width:200px"
             />
+            <!-- Ver otro día: solo con acceso al historial (son órdenes anteriores) -->
+            <div v-if="canPickDay" class="day-pick">
+              <input type="date" class="form-control form-control-sm" title="Día" :max="today"
+                :value="filters.day || today" @change="pickDay($event.target.value)" />
+              <button v-if="filters.day" type="button" class="btn-add-outline btn-sm-today" @click="pickDay('')">Hoy</button>
+            </div>
           </div>
         </div>
 
@@ -56,7 +63,7 @@
           <i class="fas fa-inbox"></i>
           <p>
             {{ noFilters
-              ? 'Aún no se han registrado órdenes hoy.'
+              ? (filters.day ? 'No se registraron órdenes ese día.' : 'Aún no se han registrado órdenes hoy.')
               : 'No hay órdenes para los filtros seleccionados.' }}
           </p>
           <RouterLink v-if="noFilters && authStore.hasPermission('scanner')" to="/scanner" class="btn-save mt-2">
@@ -126,6 +133,7 @@ import { useOrdersStore } from '../stores/orders'
 import { useAuthStore } from '../stores/auth'
 import { generateOrderPdf } from '../utils/orderPdf'
 import BaseSelect from '../components/BaseSelect.vue'
+import { todayKey } from '../utils/dates'
 import PageHeader from '../components/PageHeader.vue'
 import { useVendedores } from '../utils/useVendedores'
 import OrderStatus from '../components/OrderStatus.vue'
@@ -138,6 +146,16 @@ const isAdmin    = computed(() => authStore.user?.role === 'admin')
 const mySedeName = computed(() => sedes.value.find(s => s.code === authStore.user?.sede)?.name || 'tu sede')
 const rows       = filteredOrders
 const noFilters  = computed(() => !filters.value.query && filters.value.attendedBy === 'all')
+
+/* Día a mostrar ('' = hoy) */
+const today      = todayKey()
+const canPickDay = computed(() => authStore.hasPermission('historial'))
+const pickDay    = (v) => ordersStore.setFilter('day', !v || v === today ? '' : v)
+const dayLabel   = computed(() => {
+  const d = filters.value.day ? new Date(`${filters.value.day}T00:00:00`) : new Date()
+  const text = d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: filters.value.day ? 'numeric' : undefined })
+  return filters.value.day ? text : `Hoy · ${text}`
+})
 
 // Filtro por el vendedor que atendió (no por el usuario que registró)
 const { filterOptions: vendorOptions } = useVendedores(
@@ -193,6 +211,9 @@ async function generatePdf(order) {
 .ord-time { font-size:0.82rem; font-weight:600; color:var(--ink-700); font-variant-numeric:tabular-nums; white-space:nowrap; }
 
 .table-empty .btn-save { text-decoration:none; }
+.day-pick { display:flex; align-items:center; gap:0.4rem; }
+.day-pick .form-control { width:auto; min-width:150px; }
+.btn-sm-today { padding:0.3rem 0.75rem; font-size:0.8rem; }
 
 
 .sede-chip { display:inline-flex; align-items:center; font-size:0.75rem; font-weight:700; padding:0.28rem 0.7rem; border-radius:999px; white-space:nowrap; }

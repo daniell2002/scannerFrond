@@ -1,7 +1,13 @@
 <template>
   <div class="page-wrap">
 
-    <PageHeader title="Estadísticas" :subtitle="`Indicadores de producción · ${hoy}`" />
+    <PageHeader title="Estadísticas" :subtitle="`Indicadores de producción · ${hoy}`">
+      <template #action>
+        <button class="btn-add-outline" :disabled="exporting || !orders.length" @click="exportExcel">
+            <i class="fas" :class="exporting ? 'fa-spinner fa-spin' : 'fa-file-excel'"></i>{{ exporting ? 'Generando…' : 'Exportar a Excel' }}
+          </button>
+      </template>
+    </PageHeader>
 
     <!-- Indicadores -->
     <div class="kpi-grid">
@@ -143,10 +149,12 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useOrdersStore } from '../stores/orders'
 import PageHeader from '../components/PageHeader.vue'
+import { exportStats } from '../utils/exportExcel'
+import { useNotificationsStore } from '../stores/notifications'
 
 const store = useOrdersStore()
 const { orders, todayOrders, historicalOrders, sedes } = storeToRefs(store)
@@ -226,6 +234,20 @@ const SERIES = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--
 const sedeColor = (code) => {
   const idx = sedes.value.findIndex(s => s.code === code)
   return SERIES[idx >= 0 ? idx % SERIES.length : 0]
+}
+
+/* Exportar: los mismos indicadores de la pantalla + el detalle de las órdenes */
+const notify    = useNotificationsStore()
+const exporting = ref(false)
+async function exportExcel() {
+  exporting.value = true
+  try {
+    await exportStats({ kpis: kpis.value, last14: last14.value, sedeHoy: sedeHoy.value, sedeHist: sedeHist.value, orders: orders.value })
+  } catch {
+    notify.error('No fue posible generar el archivo de Excel.')
+  } finally {
+    exporting.value = false
+  }
 }
 
 /* Revisadas vs por revisar (hoy) */

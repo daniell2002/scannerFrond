@@ -1,8 +1,17 @@
-import pdfMake from 'pdfmake/build/pdfmake'
-import pdfFonts from 'pdfmake/build/vfs_fonts'
 import { BASE } from '../api'
 
-pdfMake.addVirtualFileSystem(pdfFonts)
+// pdfmake y sus fuentes pesan ~2 MB: se descargan la primera vez que se genera un PDF
+let pdfMakePromise = null
+function loadPdfMake() {
+  pdfMakePromise ??= Promise.all([
+    import('pdfmake/build/pdfmake'),
+    import('pdfmake/build/vfs_fonts'),
+  ]).then(([{ default: pdfMake }, { default: pdfFonts }]) => {
+    pdfMake.addVirtualFileSystem(pdfFonts)
+    return pdfMake
+  }).catch(err => { pdfMakePromise = null; throw err })
+  return pdfMakePromise
+}
 
 const ACCENT   = '#2a78d6'
 const INK_900  = '#2a78d6'
@@ -116,5 +125,6 @@ export async function generateOrderPdf(order) {
     defaultStyle: { font: 'Roboto' },
   }
 
+  const pdfMake = await loadPdfMake()
   pdfMake.createPdf(docDefinition).download(`orden-${order.code}.pdf`)
 }

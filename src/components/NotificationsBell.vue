@@ -98,12 +98,14 @@ import { useReviewsStore } from '../stores/reviews'
 import { useFeedbackStore } from '../stores/feedback'
 import { useOrdersStore } from '../stores/orders'
 import { useAuthStore } from '../stores/auth'
+import { useRealtimeStore } from '../stores/realtime'
 
 const reviews     = useReviewsStore()
 const feedback    = useFeedbackStore()
 const ordersStore = useOrdersStore()
 const auth        = useAuthStore()
 const router      = useRouter()
+const realtime    = useRealtimeStore()
 const { total, orders } = storeToRefs(reviews)
 const { items: fbItems, unseen } = storeToRefs(feedback)
 
@@ -149,11 +151,13 @@ onMounted(() => {
   // Sin el módulo de observaciones el supervisor no recibe retroalimentación
   if (isAdmin.value) reviews.start()
   else if (auth.hasPermission('observaciones')) feedback.start()
+  realtime.start()
   document.addEventListener('mousedown', onClickOutside)
 })
 onBeforeUnmount(() => {
   reviews.stop()
   feedback.stop()
+  realtime.stop()
   document.removeEventListener('mousedown', onClickOutside)
 })
 </script>

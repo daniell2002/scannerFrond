@@ -1,18 +1,23 @@
-import DashboardView    from '../views/DashboardView.vue'
-import ScannerView      from '../views/ScannerView.vue'
-import OrdenesView      from '../views/OrdenesView.vue'
-import HistorialView    from '../views/HistorialView.vue'
-import EstadisticasView from '../views/EstadisticasView.vue'
-import OrderDetailView  from '../views/OrderDetailView.vue'
-import SedesView        from '../views/SedesView.vue'
-import UsuariosView     from '../views/UsuariosView.vue'
-import ObservacionesView from '../views/ObservacionesView.vue'
-import LoginView        from '../views/LoginView.vue'
-import NoAccessView     from '../views/NoAccessView.vue'
+import LoginView from '../views/LoginView.vue'
+
+// Cada pantalla se descarga al abrirla por primera vez: la carga inicial es más liviana
+const DashboardView     = () => import('../views/DashboardView.vue')
+const ScannerView       = () => import('../views/ScannerView.vue')
+const OrdenesView       = () => import('../views/OrdenesView.vue')
+const HistorialView     = () => import('../views/HistorialView.vue')
+const EstadisticasView  = () => import('../views/EstadisticasView.vue')
+const OrderDetailView   = () => import('../views/OrderDetailView.vue')
+const SedesView         = () => import('../views/SedesView.vue')
+const UsuariosView      = () => import('../views/UsuariosView.vue')
+const ObservacionesView = () => import('../views/ObservacionesView.vue')
+const ActividadView     = () => import('../views/ActividadView.vue')
+const NoAccessView      = () => import('../views/NoAccessView.vue')
 import { firstAccessible } from '../utils/modules'
 
 export const routes = [
   { path: '/login',         name: 'login',        component: LoginView,        meta: { public: true } },
+  // Enlace del correo de "¿Olvidaste tu contraseña?"
+  { path: '/restablecer',   name: 'reset-password', component: LoginView,      meta: { public: true } },
   { path: '/',              name: 'dashboard',     component: DashboardView,    meta: { permission: 'inicio' } },
   { path: '/scanner',       name: 'scanner',       component: ScannerView,      meta: { permission: 'scanner' } },
   { path: '/ordenes',       name: 'ordenes',       component: OrdenesView,      meta: { permission: 'ordenes' } },
@@ -23,6 +28,7 @@ export const routes = [
   { path: '/orden/:code',   name: 'order-detail',  component: OrderDetailView,  meta: { permission: 'ordenes' } },
   { path: '/sedes',         name: 'sedes',         component: SedesView,        meta: { permission: 'sedes' } },
   { path: '/usuarios',      name: 'usuarios',      component: UsuariosView,     meta: { permission: 'usuarios' } },
+  { path: '/actividad',     name: 'actividad',     component: ActividadView,    meta: { adminOnly: true } },
   // Usuario sin ningún módulo asignado
   { path: '/sin-acceso',    name: 'sin-acceso',    component: NoAccessView,     meta: {} },
 ]
@@ -49,6 +55,7 @@ export function setupGuard(router) {
     }
 
     if (to.meta.hiddenForAdmin && user?.role === 'admin') return firstAllowedRoute(user)
+    if (to.meta.adminOnly && user?.role !== 'admin') return firstAllowedRoute(user) ?? { name: 'sin-acceso' }
 
     // Verificar permiso del módulo (admin siempre pasa)
     if (to.meta.permission && user?.role !== 'admin') {

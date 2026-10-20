@@ -42,6 +42,47 @@
             <!-- Campos -->
             <div class="fields-block">
 
+              <!-- Sede y vendedor arriba: la lista de vendedores tiene espacio para verse completa -->
+              <div class="field">
+                <!-- Supervisor: sede fija -->
+                <template v-if="fixedSede">
+                  <label class="flabel">Sede de producción</label>
+                  <div class="mf-wrap">
+                    <i class="fas fa-map-marker-alt mf-icon"></i>
+                    <input :value="sedeNombre" type="text" class="mf-inp" readonly />
+                    <i class="fas fa-lock mf-icon"></i>
+                  </div>
+                </template>
+                <!-- Admin: selector libre -->
+                <template v-else>
+                  <label class="flabel">Sede de producción</label>
+                  <BaseSelect
+                    v-model="orderSede"
+                    :options="ordersStore.sedes.map(s => ({ value: s.code, label: s.name }))"
+                    icon="fa-building"
+                  />
+                </template>
+              </div>
+
+              <!-- Vendedor que atendió al cliente: solo los de la sede de la orden -->
+              <div class="field">
+                <label class="flabel">Atendido por <span class="freq">&nbsp;*</span></label>
+                <BaseSelect
+                  v-model="attendedBy"
+                  :options="vendorOptions"
+                  searchable
+                  icon="fa-user-tag"
+                  :placeholder="vendorsLoading ? 'Cargando vendedores…' : vendorOptions.length ? 'Selecciona el vendedor…' : 'Sin vendedores en esta sede'"
+                  :disabled="!vendorOptions.length"
+                />
+                <span v-if="!vendorsLoading && !vendorOptions.length" class="fhint">
+                  <i class="fas fa-info-circle me-1"></i>No hay vendedores registrados en esta sede.
+                  <RouterLink v-if="auth.hasPermission('usuarios')" to="/usuarios">Registrar vendedor</RouterLink>
+                  <template v-else>Pide a un administrador que los registre.</template>
+                </span>
+              </div>
+
+
               <div class="field">
                 <label class="flabel">Orden de producción <span class="freq">&nbsp;*</span></label>
                 <div class="mf-wrap">
@@ -75,44 +116,6 @@
                 </div>
               </div>
 
-              <div class="field">
-                <!-- Supervisor: sede fija -->
-                <template v-if="fixedSede">
-                  <label class="flabel">Sede de producción</label>
-                  <div class="mf-wrap">
-                    <i class="fas fa-map-marker-alt mf-icon"></i>
-                    <input :value="sedeNombre" type="text" class="mf-inp" readonly />
-                    <i class="fas fa-lock mf-icon"></i>
-                  </div>
-                </template>
-                <!-- Admin: selector libre -->
-                <template v-else>
-                  <label class="flabel">Sede de producción</label>
-                  <BaseSelect
-                    v-model="orderSede"
-                    :options="ordersStore.sedes.map(s => ({ value: s.code, label: s.name }))"
-                    icon="fa-building"
-                  />
-                </template>
-              </div>
-
-              <!-- Vendedor que atendió al cliente: solo los de la sede de la orden -->
-              <div class="field">
-                <label class="flabel">Atendido por <span class="freq">&nbsp;*</span></label>
-                <BaseSelect
-                  v-model="attendedBy"
-                  :options="vendorOptions"
-                  icon="fa-user-tag"
-                  :placeholder="vendorsLoading ? 'Cargando vendedores…' : vendorOptions.length ? 'Selecciona el vendedor…' : 'Sin vendedores en esta sede'"
-                  :disabled="!vendorOptions.length"
-                />
-                <span v-if="!vendorsLoading && !vendorOptions.length" class="fhint">
-                  <i class="fas fa-info-circle me-1"></i>No hay vendedores registrados en esta sede.
-                  <RouterLink v-if="auth.hasPermission('usuarios')" to="/usuarios">Registrar vendedor</RouterLink>
-                  <template v-else>Pide a un administrador que los registre.</template>
-                </span>
-              </div>
-
             </div>
 
             <!-- CTA -->
@@ -123,7 +126,7 @@
               @click="submit()"
             >
               <i class="fas me-2" :class="submitting ? 'fa-spinner fa-spin' : 'fa-paper-plane'"></i>
-              {{ submitting ? 'Registrando…' : 'Registrar en órdenes del día' }}
+              {{ submitting ? 'Registrando…' : processingPhotos ? 'Preparando fotos…' : 'Registrar en órdenes del día' }}
             </button>
             <p v-if="missingHint" class="btn-cta-hint">
               {{ missingHint }}
@@ -299,6 +302,7 @@ import BaseSelect from '../components/BaseSelect.vue'
 import BaseModal from '../components/BaseModal.vue'
 import DocCameraModal from '../components/DocCameraModal.vue'
 import { useVendedores } from '../utils/useVendedores'
+import { compressImage } from '../utils/image'
 
 const ordersStore = useOrdersStore()
 const auth        = useAuthStore()
@@ -364,7 +368,7 @@ watch(vendorOptions, (opts) => {
   if (!opts.some(o => o.value === attendedBy.value)) attendedBy.value = opts.length === 1 ? opts[0].value : ''
 })
 
-const canSubmit = computed(() => orderCode.value.trim() && orderName.value.trim() && attendedBy.value)
+const canSubmit = computed(() => orderCode.value.trim() && orderName.value.trim() && attendedBy.value && !processingPhotos.value)
 const missingHint = computed(() => {
   if (!orderCode.value.trim()) return ''
   const missing = [!orderName.value.trim() && 'el cliente', !attendedBy.value && 'quién atendió'].filter(Boolean)
@@ -422,11 +426,20 @@ function removePhoto(i) {
   if (selectedIdx.value >= photos.value.length) selectedIdx.value = Math.max(0, photos.value.length - 1)
 }
 
-const processPhoto = (file) => {
-  if (photos.value.length >= MAX_PHOTOS) return
-  const url = URL.createObjectURL(file)
-  photos.value.push({ file, url })
-  selectedIdx.value = photos.value.length - 1
+// Fotos que se están comprimiendo: no se registra la orden hasta que terminen
+const processingPhotos = ref(0)
+
+const processPhoto = async (raw) => {
+  if (photos.value.length + processingPhotos.value >= MAX_PHOTOS) return
+  processingPhotos.value++
+  try {
+    const file = await compressImage(raw)
+    const url = URL.createObjectURL(file)
+    photos.value.push({ file, url })
+    selectedIdx.value = photos.value.length - 1
+  } finally {
+    processingPhotos.value--
+  }
 }
 
 </script>
@@ -489,7 +502,8 @@ html.dark .doccam-btn { color:#bcd6f7; }
 
 /* ══ PANEL IZQUIERDO ══ */
 .left-panel {
-  overflow: hidden;
+  /* visible: las listas desplegables (sede, vendedor) no se recortan */
+  overflow: visible;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 0.75rem;
@@ -497,6 +511,7 @@ html.dark .doccam-btn { color:#bcd6f7; }
 }
 
 .left-header {
+  border-radius: 0.75rem 0.75rem 0 0;
   display: flex;
   align-items: center;
   gap: 0.75rem;

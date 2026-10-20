@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { api } from '../api'
 import { useNotificationsStore } from './notifications'
+import { dayKey } from '../utils/dates'
 
 const normalizeValue = (v) => v.trim().toUpperCase()
 
@@ -20,7 +21,8 @@ export const useOrdersStore = defineStore('orders', () => {
   const lastScannedCode = ref('')
   const notify          = useNotificationsStore()
 
-  const filters = ref({ query: '', sede: 'all', attendedBy: 'all', status: 'all', priority: 'all' })
+  // day: 'AAAA-MM-DD' para ver las órdenes de otro día en "Órdenes del día" ('' = hoy)
+  const filters = ref({ query: '', sede: 'all', attendedBy: 'all', status: 'all', priority: 'all', day: '' })
 
   const sedeMap = computed(() =>
     sedesData.value.reduce((acc, s) => { acc[s.code] = s; return acc }, {})
@@ -47,9 +49,16 @@ export const useOrdersStore = defineStore('orders', () => {
       .sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt))
   )
 
+  const ordersOfDay = computed(() => {
+    const day = filters.value.day
+    if (!day) return todayOrders.value
+    return ordersWithMeta.value.filter(o =>
+      dayKey(o.scheduledAt) === day || (o.scannedAt && dayKey(o.scannedAt) === day))
+  })
+
   const filteredOrders = computed(() => {
     const query = normalizeValue(filters.value.query)
-    return todayOrders.value.filter(o => {
+    return ordersOfDay.value.filter(o => {
       const matchQ    = !query || String(o.code).toUpperCase().includes(query)
       const matchSede = filters.value.sede     === 'all' || o.sede     === filters.value.sede
       const matchOp   = filters.value.attendedBy === 'all' || String(o.attendedById) === filters.value.attendedBy
@@ -149,7 +158,6 @@ export const useOrdersStore = defineStore('orders', () => {
       lastScannedCode.value = order.code
       lastScanMessage.value = `Orden ${order.code} registrada en ${sedeMap.value[order.sede]?.name || order.sede}.`
       notify.success(`La orden ${order.code} fue registrada correctamente.`, { title: 'Orden creada' })
-      fetchOrders().catch(() => {})
       return { ok: true, order }
     } catch (e) {
       if (e?.message === 'SESSION_EXPIRED' || e?.code === 'SESSION_EXPIRED') {
@@ -190,11 +198,17 @@ export const useOrdersStore = defineStore('orders', () => {
     }
   }
 
+  // Trae una orden puntual (p. ej. al llegar un aviso en tiempo real) sin recargar todo
+  async function refreshOrder(code) {
+    if (!rawOrders.value.length) return
+    try { upsertOrder(await api.get(`/api/orders/${encodeURIComponent(code)}`)) } catch { /* se verá en la próxima carga */ }
+  }
+
   const getOrderByCode = (code) =>
     ordersWithMeta.value.find(o => normalizeValue(o.code) === normalizeValue(code))
 
   const setFilter    = (key, val) => { filters.value[key] = val }
-  const resetFilters = () => { filters.value = { query: '', sede: 'all', attendedBy: 'all', status: 'all', priority: 'all' } }
+  const resetFilters = () => { filters.value = { query: '', sede: 'all', attendedBy: 'all', status: 'all', priority: 'all', day: '' } }
 
   return {
     availablePriorities, availableStatuses,
@@ -204,7 +218,7 @@ export const useOrdersStore = defineStore('orders', () => {
     orders: ordersWithMeta,
     todayOrders, historicalOrders,
     markLocalReviewed, resetFilters, scannedOrders,
-    fetchOrders, fetchSedes, scanOrder, registerOrder,
+    fetchOrders, fetchSedes, refreshOrder, scanOrder, registerOrder,
     sedeStats, sedes: sedesData, setFilter, stats,
   }
 })

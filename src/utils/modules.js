@@ -21,10 +21,18 @@ export const MODULE_GROUPS = [
   { label: 'Administración', modules: [
     { key: 'sedes',         to: '/sedes',         icon: 'fa-building',          label: 'Sedes',           desc: 'Crear y editar sedes' },
     { key: 'usuarios',      to: '/usuarios',      icon: 'fa-users',             label: 'Usuarios',        desc: 'Gestionar vendedores de su sede', sensitive: true },
+    // Solo admin: no es un permiso asignable
+    { key: 'actividad',     to: '/actividad',     icon: 'fa-list-check',        label: 'Actividad',       desc: 'Quién hizo qué y cuándo', adminOnly: true },
   ] },
 ]
 
 export const ALL_MODULES = MODULE_GROUPS.flatMap(g => g.modules)
+
+/** Módulos que se pueden asignar a un usuario (los "solo admin" no). */
+export const ASSIGNABLE_GROUPS = MODULE_GROUPS
+  .map(g => ({ ...g, modules: g.modules.filter(m => !m.adminOnly) }))
+  .filter(g => g.modules.length)
+export const ASSIGNABLE_MODULES = ASSIGNABLE_GROUPS.flatMap(g => g.modules)
 
 export const moduleByKey = (key) => ALL_MODULES.find(m => m.key === key)
 
@@ -32,6 +40,7 @@ export const moduleByKey = (key) => ALL_MODULES.find(m => m.key === key)
 export function canAccess(user, mod) {
   if (!user || !mod) return false
   if (user.role === 'admin') return !mod.hiddenForAdmin
+  if (mod.adminOnly) return false
   return (user.permissions || []).includes(mod.key)
 }
 
@@ -61,7 +70,7 @@ export const ROLES = [
   {
     value: 'admin', label: 'Administrador', icon: 'fa-shield-halved',
     desc: 'Acceso total a todas las sedes',
-    preset: ALL_MODULES.map(m => m.key),
+    preset: ASSIGNABLE_MODULES.map(m => m.key),
   },
 ]
 

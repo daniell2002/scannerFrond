@@ -286,7 +286,7 @@
               <button type="button" @click="setAllPermissions(false)">Ninguno</button>
             </span>
           </div>
-          <div v-for="g in MODULE_GROUPS" :key="g.label" class="uf-group">
+          <div v-for="g in ASSIGNABLE_GROUPS" :key="g.label" class="uf-group">
             <span class="uf-group-label">{{ g.label }}</span>
             <div class="uf-mods">
               <button
@@ -388,7 +388,7 @@ import BaseModal from '../components/BaseModal.vue'
 import BaseSelect from '../components/BaseSelect.vue'
 import PageHeader from '../components/PageHeader.vue'
 import PasswordStrength from '../components/PasswordStrength.vue'
-import { MODULE_GROUPS, ALL_MODULES, ROLES, moduleByKey, roleByValue, roleLabel, accessSummary } from '../utils/modules'
+import { ASSIGNABLE_GROUPS, ASSIGNABLE_MODULES as ALL_MODULES, ROLES, moduleByKey, roleByValue, roleLabel, accessSummary } from '../utils/modules'
 
 const users   = ref([])
 const sedes   = ref([])

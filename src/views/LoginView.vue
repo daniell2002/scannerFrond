@@ -24,11 +24,78 @@
           <div class="lc-logo-mobile">
             <img src="/img/logo2-01.png" alt="Láminas & Dobleces" />
           </div>
-          <h1 class="lc-title">Bienvenido de vuelta</h1>
-          <p class="lc-desc">Ingresa tus credenciales para acceder al sistema</p>
+          <h1 class="lc-title">{{ heading.title }}</h1>
+          <p class="lc-desc">{{ heading.desc }}</p>
         </div>
 
-        <form @submit.prevent="handleLogin" novalidate class="lc-form">
+        <!-- ── Olvidé mi contraseña: pedir el enlace ── -->
+        <form v-if="mode === 'forgot'" @submit.prevent="handleForgot" novalidate class="lc-form">
+          <template v-if="!sent">
+            <div class="mf-field">
+              <label class="mf-label">Correo electrónico</label>
+              <div class="mf-wrap">
+                <i class="fas fa-envelope mf-icon"></i>
+                <input v-model="forgotEmail" type="email" inputmode="email" class="mf-inp"
+                  placeholder="nombre@empresa.com" autocomplete="email" autocapitalize="off" spellcheck="false" required />
+              </div>
+            </div>
+            <div v-if="error" class="alert alert-danger lc-error" role="alert">
+              <i class="fas fa-circle-exclamation me-2"></i>{{ error }}
+            </div>
+            <button type="submit" class="lc-btn" :disabled="loading || !forgotEmail.trim()">
+              <template v-if="!loading">Enviar enlace <i class="fas fa-paper-plane ms-2"></i></template>
+              <template v-else><i class="fas fa-spinner fa-spin me-2"></i>Enviando…</template>
+            </button>
+          </template>
+          <div v-else class="alert alert-success lc-error" role="status">
+            <i class="fas fa-envelope-circle-check me-2"></i>{{ sent }}
+          </div>
+          <p class="lc-hint">¿No tienes acceso a tu correo? Pide a un administrador que restablezca tu contraseña.</p>
+          <button type="button" class="lc-link" @click="goLogin"><i class="fas fa-arrow-left me-1"></i>Volver al ingreso</button>
+        </form>
+
+        <!-- ── Restablecer: llegó desde el enlace del correo ── -->
+        <form v-else-if="mode === 'reset'" @submit.prevent="handleReset" novalidate class="lc-form">
+          <template v-if="!done">
+            <div class="mf-field">
+              <label class="mf-label">Nueva contraseña</label>
+              <div class="mf-wrap">
+                <i class="fas fa-lock mf-icon"></i>
+                <input v-model="newPassword" :type="showPass ? 'text' : 'password'" class="mf-inp"
+                  placeholder="Mínimo 8 caracteres" autocomplete="new-password" required />
+                <button type="button" class="mf-eye" @click="showPass = !showPass">
+                  <i class="fas" :class="showPass ? 'fa-eye-slash' : 'fa-eye'"></i>
+                </button>
+              </div>
+              <PasswordStrength :password="newPassword" />
+            </div>
+            <div class="mf-field">
+              <label class="mf-label">Confirmar contraseña</label>
+              <div class="mf-wrap">
+                <i class="fas fa-check-double mf-icon"></i>
+                <input v-model="confirmPassword" :type="showPass ? 'text' : 'password'" class="mf-inp"
+                  placeholder="Repite la contraseña" autocomplete="new-password" required />
+              </div>
+              <span v-if="confirmPassword && confirmPassword !== newPassword" class="lc-mismatch">Las contraseñas no coinciden</span>
+            </div>
+            <div v-if="error" class="alert alert-danger lc-error" role="alert">
+              <i class="fas fa-circle-exclamation me-2"></i>{{ error }}
+            </div>
+            <button type="submit" class="lc-btn" :disabled="loading || !canReset">
+              <template v-if="!loading">Guardar contraseña <i class="fas fa-check ms-2"></i></template>
+              <template v-else><i class="fas fa-spinner fa-spin me-2"></i>Guardando…</template>
+            </button>
+          </template>
+          <template v-else>
+            <div class="alert alert-success lc-error" role="status">
+              <i class="fas fa-circle-check me-2"></i>{{ done }}
+            </div>
+            <button type="button" class="lc-btn" @click="goLogin">Ir al ingreso <i class="fas fa-arrow-right ms-2"></i></button>
+          </template>
+          <button v-if="!done" type="button" class="lc-link" @click="goLogin"><i class="fas fa-arrow-left me-1"></i>Volver al ingreso</button>
+        </form>
+
+        <form v-else @submit.prevent="handleLogin" novalidate class="lc-form">
           <div class="mf-field">
             <label class="mf-label">Correo electrónico</label>
             <div class="mf-wrap">
@@ -65,9 +132,12 @@
             </div>
           </div>
 
-          <div class="form-check lc-remember">
-            <input id="lc-remember" v-model="remember" class="form-check-input" type="checkbox" />
-            <label class="form-check-label" for="lc-remember">Recordar mi correo</label>
+          <div class="lc-row">
+            <div class="form-check lc-remember">
+              <input id="lc-remember" v-model="remember" class="form-check-input" type="checkbox" />
+              <label class="form-check-label" for="lc-remember">Recordar mi correo</label>
+            </div>
+            <button type="button" class="lc-link" @click="goForgot">¿Olvidaste tu contraseña?</button>
           </div>
 
           <div v-if="error" class="alert alert-danger lc-error" role="alert">
@@ -88,11 +158,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { api } from '../api'
+import PasswordStrength from '../components/PasswordStrength.vue'
 
 const router  = useRouter()
+const route   = useRoute()
 const auth    = useAuthStore()
 
 const username = ref('')
@@ -101,6 +174,65 @@ const remember = ref(false)
 const error    = ref('')
 const loading  = ref(false)
 const showPass = ref(false)
+
+/* ── Modo: ingreso, pedir enlace o crear contraseña nueva (/restablecer?token=…) ── */
+const forgot = ref(false)
+const mode   = computed(() => route.name === 'reset-password' ? 'reset' : forgot.value ? 'forgot' : 'login')
+
+const heading = computed(() => ({
+  login:  { title: 'Bienvenido de vuelta', desc: 'Ingresa tus credenciales para acceder al sistema' },
+  forgot: { title: 'Recuperar contraseña', desc: 'Te enviaremos un enlace a tu correo para crear una nueva' },
+  reset:  { title: 'Crea tu contraseña',   desc: 'Escribe la nueva contraseña para tu cuenta' },
+}[mode.value]))
+
+const forgotEmail     = ref('')
+const sent            = ref('')
+const newPassword     = ref('')
+const confirmPassword = ref('')
+const done            = ref('')
+const canReset = computed(() => newPassword.value.length >= 8 && newPassword.value === confirmPassword.value)
+
+function goForgot() {
+  error.value = ''
+  sent.value = ''
+  forgotEmail.value = username.value.includes('@') ? username.value.trim() : ''
+  forgot.value = true
+}
+
+function goLogin() {
+  error.value = ''
+  forgot.value = false
+  if (route.name === 'reset-password') router.replace('/login')
+}
+
+async function handleForgot() {
+  error.value = ''
+  loading.value = true
+  try {
+    const { message } = await api.post('/api/auth/forgot-password', { email: forgotEmail.value.trim() })
+    sent.value = message
+  } catch (e) {
+    error.value = e.message || 'No fue posible enviar el enlace.'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleReset() {
+  if (!canReset.value) return
+  error.value = ''
+  loading.value = true
+  try {
+    const { message } = await api.post('/api/auth/reset-password', {
+      token: route.query.token, newPassword: newPassword.value,
+    })
+    done.value = message
+  } catch (e) {
+    error.value = e.message || 'No fue posible guardar la contraseña.'
+  } finally {
+    loading.value = false
+  }
+}
 
 onMounted(() => {
   const saved = localStorage.getItem('login_remember_user')
@@ -265,6 +397,17 @@ async function handleLogin() {
   color: var(--ink-700);
   cursor: pointer;
 }
+
+.lc-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; margin-top: -0.3rem; }
+.lc-row .lc-remember { margin: 0; }
+.lc-link {
+  border: none; background: none; padding: 0;
+  font-size: 0.85rem; font-weight: 600; color: var(--accent); cursor: pointer;
+  align-self: center;
+}
+.lc-link:hover { text-decoration: underline; }
+.lc-hint { margin: 0; font-size: 0.78rem; line-height: 1.5; color: var(--ink-500); text-align: center; }
+.lc-mismatch { font-size: 0.72rem; color: var(--danger); }
 
 .lc-error {
   font-size: 0.86rem;

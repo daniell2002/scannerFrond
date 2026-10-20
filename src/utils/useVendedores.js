@@ -1,5 +1,6 @@
 import { ref, computed, onMounted, unref } from 'vue'
 import { api } from '../api'
+import { useOrdersStore } from '../stores/orders'
 
 /*
  * Vendedores registrados (rol "vendedor"): las opciones de "Atendido por" al
@@ -10,6 +11,7 @@ import { api } from '../api'
  * - includeInactive: también los desactivados (para filtrar órdenes antiguas).
  */
 export function useVendedores(sedeRef, { includeInactive = false } = {}) {
+  const ordersStore = useOrdersStore()
   const vendors = ref([])
   const loading = ref(true)
 
@@ -30,14 +32,24 @@ export function useVendedores(sedeRef, { includeInactive = false } = {}) {
     return vendors.value.filter(v => !sede || sede === 'all' || v.sede === sede)
   })
 
+  // Con todas las sedes (admin) se indica la sede: puede haber nombres repetidos
+  const sedeName = (code) => ordersStore.sedes.find(s => s.code === code)?.name || code
+  const allSedes = computed(() => { const s = unref(sedeRef); return !s || s === 'all' })
+  const labelOf  = (v) => {
+    const base = allSedes.value && v.sede ? `${v.name} · ${sedeName(v.sede)}` : v.name
+    return v.active ? base : `${base} (inactivo)`
+  }
+
   /** Opciones para el filtro de las tablas (incluye "Todos"). */
   const filterOptions = computed(() => [
     { value: 'all', label: 'Todos los vendedores' },
-    ...inSede.value.map(v => ({ value: v.id, label: v.active ? v.name : `${v.name} (inactivo)` })),
+    ...[...inSede.value].sort((a, b) => a.name.localeCompare(b.name, 'es')).map(v => ({ value: v.id, label: labelOf(v) })),
   ])
 
   /** Opciones para el select "Atendido por". */
-  const options = computed(() => inSede.value.map(v => ({ value: v.id, label: v.name })))
+  const options = computed(() => [...inSede.value]
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+    .map(v => ({ value: v.id, label: v.name })))
 
   return { vendors, loading, options, filterOptions, reload: load }
 }

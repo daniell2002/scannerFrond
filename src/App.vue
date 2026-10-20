@@ -236,16 +236,20 @@ onBeforeUnmount(() => {
   document.removeEventListener('mousedown', onClickOutsideUserMenu)
 })
 
-const isLogin = computed(() => route.name === 'login')
+// Ingreso y restablecer contraseña se muestran sin el menú
+const isLogin = computed(() => !!route.meta.public)
 
 const initials = computed(() => {
   const name = auth.user?.name || ''
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'OP'
 })
 
-watch(darkMode, v => {
-  document.documentElement.classList.toggle('dark', v)
-  localStorage.setItem('dark', v)
+// El ingreso (y restablecer contraseña) siempre se ve en modo claro;
+// la preferencia se guarda y se aplica al entrar al sistema
+watch(darkMode, v => localStorage.setItem('dark', v))
+// (route.matched vacío = la ruta aún no se resuelve al recargar: se espera para no parpadear)
+watch([darkMode, isLogin, () => route.matched.length], ([dark, login, resolved]) => {
+  document.documentElement.classList.toggle('dark', dark && !login && resolved > 0)
 }, { immediate: true })
 
 const toggleDark    = () => { darkMode.value = !darkMode.value }
@@ -292,6 +296,7 @@ const PAGES = {
   usuarios:       { section: 'Administración', title: 'Usuarios' },
   observaciones:  { section: 'Operación',      title: 'Observaciones' },
   'sin-acceso':   { section: 'Cuenta',         title: 'Sin acceso' },
+  actividad:      { section: 'Administración', title: 'Actividad' },
 }
 const currentPage = computed(() => {
   const page = PAGES[route.name] || { section: 'Conexa', title: '' }
