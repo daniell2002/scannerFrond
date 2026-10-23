@@ -515,6 +515,8 @@ a.btn-add, a.btn-add-outline { text-decoration: none; }
 }
 .btn-icon:hover { background: var(--surface); color: var(--ink-900); border-color: var(--line-strong); }
 .btn-edit:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-trace { color: var(--warning, #b7791f); }
+.btn-trace:hover { background: color-mix(in srgb, var(--warning, #b7791f) 14%, transparent); border-color: var(--warning, #b7791f); color: var(--warning, #b7791f); }
 .btn-del:hover  { background: var(--danger); color: #fff; border-color: var(--danger); }
 
 /* Etiqueta de sede: punto de color + nombre neutro */

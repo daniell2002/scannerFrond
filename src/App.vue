@@ -287,7 +287,7 @@ const badgeFor = (item) => item.badge === 'feedback' ? feedbackStore.unseen : 0
 
 const navSections = computed(() =>
   MODULE_GROUPS
-    .map(g => ({ label: g.label, items: g.modules.filter(m => canAccess(auth.user, m)) }))
+    .map(g => ({ label: g.label, items: g.modules.filter(m => m.to && canAccess(auth.user, m)) }))
     .filter(g => g.items.length)
 )
 

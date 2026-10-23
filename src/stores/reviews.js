@@ -16,7 +16,8 @@ export const useReviewsStore = defineStore('reviews', () => {
   let timer = null
   let knownCodes = null // null = primera carga, no avisar
 
-  async function fetchPending() {
+  /** silent: actualiza la lista sin avisar de órdenes nuevas (ya se avisó por otro lado). */
+  async function fetchPending({ silent = false } = {}) {
     try {
       const data = await api.get('/api/orders/pending-review')
       const fresh = knownCodes
@@ -26,7 +27,9 @@ export const useReviewsStore = defineStore('reviews', () => {
       total.value  = data.total
       orders.value = data.orders
 
-      if (fresh.length === 1) {
+      if (silent) {
+        /* sin aviso */
+      } else if (fresh.length === 1) {
         notify.info(`${fresh[0].code} · ${fresh[0].operator}`, { title: 'Nueva orden por revisar' })
       } else if (fresh.length > 1) {
         notify.info(`Llegaron ${fresh.length} órdenes nuevas.`, { title: 'Órdenes por revisar' })

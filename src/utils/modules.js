@@ -17,6 +17,9 @@ export const MODULE_GROUPS = [
     { key: 'observaciones', to: '/observaciones', icon: 'fa-comment-dots',      label: 'Observaciones',   desc: 'Comentarios del administrador', hiddenForAdmin: true, badge: 'feedback' },
     { key: 'historial',     to: '/historial',     icon: 'fa-clock-rotate-left', label: 'Historial',       desc: 'Órdenes anteriores' },
     { key: 'estadisticas',  to: '/estadisticas',  icon: 'fa-chart-column',      label: 'Estadísticas',    desc: 'Indicadores de producción' },
+    // Permiso sin página propia: habilita el botón "Corregir" en las tablas y el detalle
+    { key: 'editar_ordenes',                      icon: 'fa-pen-to-square',     label: 'Editar órdenes',  desc: 'Corregir código, cliente, vendedor y fotos', permissionOnly: true },
+    { key: 'eliminar_ordenes',                    icon: 'fa-trash',             label: 'Eliminar órdenes', desc: 'Borrar órdenes con un motivo (queda registrado)', permissionOnly: true, sensitive: true },
   ] },
   { label: 'Administración', modules: [
     { key: 'sedes',         to: '/sedes',         icon: 'fa-building',          label: 'Sedes',           desc: 'Crear y editar sedes' },
@@ -46,7 +49,7 @@ export function canAccess(user, mod) {
 
 /** Primera página a la que el usuario tiene acceso (para redirigir). */
 export function firstAccessible(user) {
-  return ALL_MODULES.find(m => canAccess(user, m))?.to || null
+  return ALL_MODULES.find(m => m.to && canAccess(user, m))?.to || null
 }
 
 /*
@@ -58,7 +61,7 @@ export const ROLES = [
   {
     value: 'supervisor', label: 'Supervisor', icon: 'fa-user-tie',
     desc: 'Registra las órdenes de su sede',
-    preset: ['inicio', 'scanner', 'ordenes', 'observaciones', 'historial', 'estadisticas', 'usuarios'],
+    preset: ['inicio', 'scanner', 'ordenes', 'observaciones', 'historial', 'estadisticas', 'usuarios', 'editar_ordenes'],
   },
   {
     // Sin cuenta de acceso: solo aparece en "Atendido por" al registrar una orden
@@ -105,6 +108,8 @@ export function accessSummary({ role, sedeName, permissions = [] }) {
     lines.push({ icon: 'fa-people-group', text: `Ve las órdenes de ${sede}.` })
   if (has('observaciones')) lines.push({ icon: 'fa-comment-dots', text: 'Recibe y atiende las observaciones del administrador.' })
   if (has('estadisticas')) lines.push({ icon: 'fa-chart-column', text: `Consulta las estadísticas de ${sede}.` })
+  if (has('eliminar_ordenes')) lines.push({ icon: 'fa-trash', text: `Elimina órdenes de ${sede} indicando el motivo (queda registrado).` })
+  if (has('editar_ordenes')) lines.push({ icon: 'fa-pen-to-square', text: `Corrige órdenes de ${sede} (queda registrado y vuelven a revisión).` })
   if (has('usuarios')) lines.push({ icon: 'fa-users', text: `Registra y edita los vendedores de ${sede}.` })
   if (has('sedes')) lines.push({ icon: 'fa-building', text: 'Crea y edita sedes.' })
   if (!permissions.length) lines.push({ icon: 'fa-lock', text: 'Sin módulos: no podrá usar el sistema.', warn: true })

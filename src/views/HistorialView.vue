@@ -135,6 +135,30 @@
                     >
                       <i class="fas" :class="generatingPdf === item.code ? 'fa-spinner fa-spin' : 'fa-file-pdf'"></i>
                     </button>
+                    <button
+                      v-if="item.edits?.length"
+                      class="btn-icon btn-trace"
+                      :title="`Trazabilidad: ${item.edits.length} ${item.edits.length === 1 ? 'corrección' : 'correcciones'}`"
+                      @click="tracing = item"
+                    >
+                      <i class="fas fa-clock-rotate-left"></i>
+                    </button>
+                    <button
+                      v-if="canEdit"
+                      class="btn-icon btn-edit"
+                      title="Corregir orden"
+                      @click="editing = item"
+                    >
+                      <i class="fas fa-pen"></i>
+                    </button>
+                    <button
+                      v-if="canDelete"
+                      class="btn-icon btn-del"
+                      title="Eliminar orden"
+                      @click="deleting = item"
+                    >
+                      <i class="fas fa-trash"></i>
+                    </button>
                     <RouterLink :to="`/orden/${item.code}`" class="btn-icon" title="Ver detalle">
                       <i class="fas fa-arrow-right"></i>
                     </RouterLink>
@@ -147,6 +171,11 @@
       </div>
     </div>
   </section>
+
+  <!-- Corregir una orden (permiso "Editar órdenes"); queda en su historial -->
+  <EditOrderModal :model-value="!!editing" :order="editing" @update:model-value="v => { if (!v) editing = null }" />
+  <OrderTraceModal :model-value="!!tracing" :order="tracing" @update:model-value="v => { if (!v) tracing = null }" />
+  <DeleteOrderModal :model-value="!!deleting" :order="deleting" @update:model-value="v => { if (!v) deleting = null }" />
 </template>
 
 <script setup>
@@ -164,12 +193,20 @@ import { inRange, dayKey } from '../utils/dates'
 import PageHeader from '../components/PageHeader.vue'
 import { useVendedores } from '../utils/useVendedores'
 import OrderStatus from '../components/OrderStatus.vue'
+import EditOrderModal from '../components/EditOrderModal.vue'
+import OrderTraceModal from '../components/OrderTraceModal.vue'
+import DeleteOrderModal from '../components/DeleteOrderModal.vue'
 
 const ordersStore = useOrdersStore()
 const authStore    = useAuthStore()
 const { historicalOrders, orders, sedes } = storeToRefs(ordersStore)
 // El admin ve todas las sedes; el supervisor, solo la suya (el backend ya filtra)
 const isAdmin    = computed(() => authStore.user?.role === 'admin')
+const canEdit    = computed(() => authStore.hasPermission('editar_ordenes'))
+const editing    = ref(null)   // orden que se está corrigiendo
+const canDelete  = computed(() => authStore.hasPermission('eliminar_ordenes'))
+const deleting   = ref(null)   // orden por eliminar
+const tracing    = ref(null)   // orden cuyas correcciones se muestran
 const mySedeName = computed(() => sedes.value.find(s => s.code === authStore.user?.sede)?.name || 'Tu sede')
 
 onMounted(() => ordersStore.fetchOrders())

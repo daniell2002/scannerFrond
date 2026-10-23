@@ -97,6 +97,46 @@ export const useOrdersStore = defineStore('orders', () => {
     else rawOrders.value.unshift(order)
   }
 
+  /**
+   * Corrige una orden ya registrada (permiso editar_ordenes). Queda en su historial.
+   * fields: { code, product, attendedById, keepPhotos: [url], files: [File], reason }
+   * Devuelve { ok, order } o { ok: false, message }.
+   */
+  async function correctOrder(currentCode, { code, product, attendedById, keepPhotos, files = [], reason }) {
+    const form = new FormData()
+    form.append('code', code)
+    form.append('product', product)
+    if (attendedById) form.append('attendedById', attendedById)
+    form.append('keepPhotos', JSON.stringify(keepPhotos))
+    files.forEach(f => form.append('photos', f))
+    form.append('reason', reason)
+    try {
+      const order = await api.patch(`/api/orders/${encodeURIComponent(currentCode)}/correct`, form)
+      // Si cambió el código, la orden se reemplaza en su misma posición
+      const idx = rawOrders.value.findIndex(o => String(o.id) === String(order.id))
+      if (idx >= 0) rawOrders.value[idx] = order
+      else upsertOrder(order)
+      notify.success(`La orden ${order.code} fue corregida.`, { title: 'Orden corregida' })
+      return { ok: true, order }
+    } catch (e) {
+      if (e?.message === 'SESSION_EXPIRED' || e?.code === 'SESSION_EXPIRED') return { ok: false, message: '' }
+      return { ok: false, message: e.message || 'No fue posible corregir la orden.' }
+    }
+  }
+
+  /** Elimina una orden (permiso eliminar_ordenes) con su motivo. Devuelve { ok } o { ok: false, message }. */
+  async function deleteOrder(code, reason) {
+    try {
+      await api.del(`/api/orders/${encodeURIComponent(code)}`, { reason })
+      rawOrders.value = rawOrders.value.filter(o => normalizeValue(o.code) !== normalizeValue(code))
+      notify.warning(`La orden ${code} fue eliminada.`, { title: 'Orden eliminada' })
+      return { ok: true }
+    } catch (e) {
+      if (e?.message === 'SESSION_EXPIRED' || e?.code === 'SESSION_EXPIRED') return { ok: false, message: '' }
+      return { ok: false, message: e.message || 'No fue posible eliminar la orden.' }
+    }
+  }
+
   // Refleja localmente la revisión del admin (sin recargar todas las órdenes)
   const markLocalReviewed = (code = null) => {
     rawOrders.value.forEach(o => {
@@ -137,7 +177,7 @@ export const useOrdersStore = defineStore('orders', () => {
     }
   }
 
-  async function registerOrder(rawCode, productName, sedeCode = 'BOG', attendedById, photoFiles = [], { confirmDuplicate = false } = {}) {
+  async function registerOrder(rawCode, productName, sedeCode = 'BOG', attendedById, photoFiles = []) {
     const code = normalizeValue(rawCode)
     if (!code) {
       lastScanMessage.value = 'Ingresa una orden de producción válida.'
@@ -151,7 +191,6 @@ export const useOrdersStore = defineStore('orders', () => {
       form.append('sede', sedeCode)
       if (attendedById) form.append('attendedById', attendedById)
       ;(Array.isArray(photoFiles) ? photoFiles : [photoFiles]).filter(Boolean).forEach(f => form.append('photos', f))
-      if (confirmDuplicate) form.append('confirmDuplicate', 'true')
 
       const order = await api.post('/api/orders', form)
       upsertOrder(order)
@@ -163,7 +202,7 @@ export const useOrdersStore = defineStore('orders', () => {
       if (e?.message === 'SESSION_EXPIRED' || e?.code === 'SESSION_EXPIRED') {
         return { ok: false, reason: 'session_expired' }
       }
-      // Orden ya registrada: la vista decide si se reenvía (sin toast de error)
+      // Orden ya registrada: la vista muestra quién y cuándo (sin toast de error)
       if (e?.status === 409 && e.data?.code === 'DUPLICATE') {
         return { ok: false, reason: 'duplicate', message: e.message, sameUser: e.data.sameUser, existing: e.data.order }
       }
@@ -218,7 +257,7 @@ export const useOrdersStore = defineStore('orders', () => {
     orders: ordersWithMeta,
     todayOrders, historicalOrders,
     markLocalReviewed, resetFilters, scannedOrders,
-    fetchOrders, fetchSedes, refreshOrder, scanOrder, registerOrder,
+    correctOrder, deleteOrder, fetchOrders, fetchSedes, refreshOrder, scanOrder, registerOrder,
     sedeStats, sedes: sedesData, setFilter, stats,
   }
 })

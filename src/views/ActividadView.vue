@@ -124,13 +124,14 @@ const filters = ref({ q: '', entity: 'all', action: 'all', actorId: 'all', from:
 const ENTITIES = { orden: 'Orden', usuario: 'Usuario', sede: 'Sede', observacion: 'Observación', sesion: 'Sesión' }
 const ENTITY_ICON = { orden: 'fa-file-lines', usuario: 'fa-user', sede: 'fa-building', observacion: 'fa-comment-dots', sesion: 'fa-right-to-bracket' }
 const ACTIONS = {
-  crear: 'Creó', editar: 'Editó', eliminar: 'Eliminó', reenviar: 'Reenvió',
+  crear: 'Creó', editar: 'Editó', corregir: 'Corrigió', eliminar: 'Eliminó', reenviar: 'Reenvió',
   restablecer: 'Restableció contraseña de', 'cambiar contraseña': 'Cambió contraseña de',
   recuperar: 'Pidió recuperar contraseña de', ingresar: 'Inició',
 }
 const FIELDS = {
   product: 'Cliente', line: 'Línea', batch: 'Lote', status: 'Estado', priority: 'Prioridad', sede: 'Sede',
   quantity: 'Cantidad', completed: 'Completadas', operator: 'Registró', attendedBy: 'Atendido por',
+  code: 'Código', photos: 'Fotos', reason: 'Motivo',
   name: 'Nombre', email: 'Correo', role: 'Rol', permissions: 'Módulos', active: 'Activo', password: 'Contraseña',
   city: 'Ciudad', manager: 'Encargado',
 }
@@ -146,6 +147,8 @@ const actionTone = (a) => a === 'eliminar' ? 'danger' : a === 'crear' ? 'ok' : a
 function valueText(v) {
   if (v === null || v === undefined || v === '') return '—'
   if (typeof v === 'boolean') return v ? 'Sí' : 'No'
+  // Fotos de una orden: se muestra la cantidad
+  if (Array.isArray(v) && v.some(x => String(x).startsWith('/uploads/'))) return `${v.length} ${v.length === 1 ? 'foto' : 'fotos'}`
   if (Array.isArray(v)) return v.map(k => MODULE_NAMES[k] || k).join(', ') || '—'
   const sede = ordersStore.sedes.find(s => s.code === v)
   return sede ? sede.name : roleLabel(v) || String(v)
@@ -159,7 +162,7 @@ const changesText = (changes) => changes
 const entityOptions = [{ value: 'all', label: 'Todo' }, ...Object.entries(ENTITIES).map(([value, label]) => ({ value, label }))]
 const actionOptions = [
   { value: 'all', label: 'Todas las acciones' },
-  { value: 'crear', label: 'Crear' }, { value: 'editar', label: 'Editar' }, { value: 'eliminar', label: 'Eliminar' },
+  { value: 'crear', label: 'Crear' }, { value: 'editar', label: 'Editar' }, { value: 'corregir', label: 'Corregir orden' }, { value: 'eliminar', label: 'Eliminar' },
   { value: 'reenviar', label: 'Reenviar orden' }, { value: 'restablecer', label: 'Restablecer contraseña' },
   { value: 'cambiar contraseña', label: 'Cambiar contraseña' }, { value: 'recuperar', label: 'Recuperar por correo' },
   { value: 'ingresar', label: 'Inicios de sesión' },

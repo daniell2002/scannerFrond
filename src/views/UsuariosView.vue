@@ -53,7 +53,7 @@
           <div class="table-card-search">
             <div class="search-box">
               <i class="fas fa-search search-box-icon"></i>
-              <input v-model="query" type="text" class="form-control" placeholder="Buscar por nombre o correo…" />
+              <input v-model="query" type="text" class="form-control" placeholder="Buscar por nombre, usuario o correo…" />
             </div>
             <BaseSelect v-model="roleFilter" :options="roleFilterOptions" icon="fa-user-tag" size="sm" style="min-width:170px" />
             <BaseSelect v-model="statusFilter" :options="statusFilterOptions" icon="fa-toggle-on" size="sm" style="min-width:150px" />

@@ -258,7 +258,7 @@
 
     <DocCameraModal v-model="docCamOpen" @capture="processPhoto" />
 
-    <!-- Orden duplicada: confirmar antes de registrarla de nuevo -->
+    <!-- Orden duplicada: un código no se registra dos veces; solo se informa -->
     <BaseModal
       v-model="dupOpen"
       icon="fa-copy"
@@ -277,16 +277,12 @@
           <strong>{{ new Date(dup.existing.scannedAt || dup.existing.scheduledAt).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) }}</strong>
         </div>
         <p class="dup-note">
-          <i class="fas fa-exclamation-triangle me-1"></i>
-          Si continúas, la orden se registrará de nuevo a tu nombre con la fecha de hoy.
+          <i class="fas fa-ban me-1"></i>
+          Este código ya existe y no se puede registrar de nuevo. Revisa el número de la orden.
         </p>
       </div>
       <template #footer>
-        <button class="btn-cancel" @click="dupOpen = false">Cancelar</button>
-        <button class="btn-save" :disabled="submitting" @click="confirmDuplicate">
-          <i class="fas" :class="submitting ? 'fa-spinner fa-spin' : 'fa-redo'"></i>
-          Registrar de nuevo
-        </button>
+        <button class="btn-save" @click="dupOpen = false"><i class="fas fa-check"></i>Entendido</button>
       </template>
     </BaseModal>
   </section>
@@ -368,18 +364,24 @@ watch(vendorOptions, (opts) => {
   if (!opts.some(o => o.value === attendedBy.value)) attendedBy.value = opts.length === 1 ? opts[0].value : ''
 })
 
-const canSubmit = computed(() => orderCode.value.trim() && orderName.value.trim() && attendedBy.value && !processingPhotos.value)
+// La orden no se guarda sin al menos una foto del documento
+const canSubmit = computed(() =>
+  orderCode.value.trim() && orderName.value.trim() && attendedBy.value && photos.value.length > 0 && !processingPhotos.value)
 const missingHint = computed(() => {
   if (!orderCode.value.trim()) return ''
-  const missing = [!orderName.value.trim() && 'el cliente', !attendedBy.value && 'quién atendió'].filter(Boolean)
-  return missing.length ? `falta ${missing.join(' y ')}` : ''
+  const missing = [
+    !photos.value.length && 'la foto',
+    !orderName.value.trim() && 'el cliente',
+    !attendedBy.value && 'quién atendió',
+  ].filter(Boolean)
+  return missing.length ? `falta ${missing.join(', ').replace(/, ([^,]*)$/, ' y $1')}` : ''
 })
 
 /* Duplicados: el backend responde 409 y aquí se pide confirmación */
 const dup     = ref(null)
 const dupOpen = ref(false)
 
-const submit = async (confirm = false) => {
+const submit = async () => {
   if (!canSubmit.value) return
   submitting.value = true
   try {
@@ -389,7 +391,6 @@ const submit = async (confirm = false) => {
       effectiveSede.value,
       attendedBy.value,
       photos.value.map(p => p.file),
-      { confirmDuplicate: confirm === true }
     )
 
     if (result?.reason === 'duplicate') {
@@ -408,8 +409,6 @@ const submit = async (confirm = false) => {
     submitting.value = false
   }
 }
-
-const confirmDuplicate = () => submit(true)
 
 /* Cámara de documentos (KB-700 u otra webcam USB) */
 const docCamOpen = ref(false)

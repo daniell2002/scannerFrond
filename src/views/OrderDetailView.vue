@@ -37,6 +37,12 @@
               <span v-if="feedbackList.length" class="fb-btn-count">{{ feedbackList.length }}</span>
               <span v-if="unseenCount" class="fb-btn-dot" aria-hidden="true"></span>
             </button>
+            <button v-if="canEdit" class="btn-add-outline" @click="editOpen = true">
+              <i class="fas fa-pen-to-square"></i>Corregir
+            </button>
+            <button v-if="canDelete" class="btn-add-outline do-btn" @click="deleteOpen = true">
+              <i class="fas fa-trash"></i>Eliminar
+            </button>
             <button class="btn-add-outline" @click="goBack">
               <i class="fas fa-arrow-left"></i>Volver
             </button>
@@ -134,6 +140,16 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- Trazabilidad: correcciones hechas a la orden -->
+      <div v-if="order.edits?.length" class="det-card mb-4">
+        <div class="det-card-head">
+          <div class="det-card-head-icon"><i class="fas fa-clock-rotate-left"></i></div>
+          <span class="det-card-head-title">Historial de cambios</span>
+          <span class="table-card-count ms-2">{{ order.edits.length }}</span>
+        </div>
+        <div class="ed-body"><OrderEditsList :edits="order.edits" /></div>
       </div>
 
     </template>
@@ -287,6 +303,9 @@
     </div>
     <p class="photo-modal-hint">Arrastra para mover · rueda del mouse o los botones para acercar/alejar</p>
   </BaseModal>
+
+  <EditOrderModal v-model="editOpen" :order="order" @saved="onCorrected" />
+  <DeleteOrderModal v-model="deleteOpen" :order="order" @deleted="goBack" />
 </template>
 
 
@@ -299,6 +318,9 @@ import { useFeedbackStore } from '../stores/feedback'
 import { useAuthStore } from '../stores/auth'
 import { BASE } from '../api'
 import PageHeader from '../components/PageHeader.vue'
+import EditOrderModal from '../components/EditOrderModal.vue'
+import DeleteOrderModal from '../components/DeleteOrderModal.vue'
+import OrderEditsList from '../components/OrderEditsList.vue'
 import BaseModal from '../components/BaseModal.vue'
 
 const route  = useRoute()
@@ -308,6 +330,16 @@ const router = useRouter()
 const goBack = () => window.history.state?.back ? router.back() : router.push('/ordenes')
 const ordersStore = useOrdersStore()
 const order = computed(() => ordersStore.getOrderByCode(route.params.code))
+
+/* Corregir la orden (permiso "Editar órdenes") y su historial de cambios */
+const editOpen = ref(false)
+const canEdit  = computed(() => useAuthStore().hasPermission('editar_ordenes'))
+// Si cambió el código, la URL se actualiza al nuevo
+const onCorrected = (o) => { if (o.code !== route.params.code) router.replace(`/orden/${o.code}`) }
+
+/* Eliminar la orden (permiso "Eliminar órdenes"); al terminar se vuelve a la tabla */
+const deleteOpen = ref(false)
+const canDelete  = computed(() => useAuthStore().hasPermission('eliminar_ordenes'))
 
 // Si se entra directo por enlace, las órdenes aún no están cargadas
 const loaded = ref(ordersStore.orders.length > 0)
@@ -439,7 +471,11 @@ const endDrag = () => { dragging.value = false }
 </script>
 
 <style scoped>
+/* Historial de cambios */
+.ed-body { padding:0.75rem 1.25rem 1rem; }
+
 /* Acciones de cabecera */
+.do-btn:hover { color:var(--danger); border-color:var(--danger); }
 .det-actions { display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; }
 
 /* Botón de retroalimentación con aviso de pendientes */

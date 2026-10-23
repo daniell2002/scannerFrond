@@ -4,6 +4,7 @@ import { api, BASE } from '../api'
 import { useReviewsStore } from './reviews'
 import { useFeedbackStore } from './feedback'
 import { useOrdersStore } from './orders'
+import { useNotificationsStore } from './notifications'
 
 /*
  * Avisos en tiempo real (Server-Sent Events, ver scannerBack/src/helpers/events.js).
@@ -35,8 +36,14 @@ export const useRealtimeStore = defineStore('realtime', () => {
     })
 
     source.addEventListener('order', (e) => {
-      const { code } = JSON.parse(e.data)
-      useReviewsStore().fetchPending()   // campana + aviso "Nueva orden por revisar"
+      const { code, edited, operator } = JSON.parse(e.data)
+      if (edited) {
+        // Una orden corregida por un supervisor: aviso propio y vuelve a la lista de revisión
+        useNotificationsStore().info(`${code} · corregida por ${operator}`, { title: 'Orden corregida' })
+        useReviewsStore().fetchPending({ silent: true })
+      } else {
+        useReviewsStore().fetchPending()   // campana + aviso "Nueva orden por revisar"
+      }
       useOrdersStore().refreshOrder(code)
     })
 
