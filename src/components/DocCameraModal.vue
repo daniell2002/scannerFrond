@@ -194,7 +194,7 @@ const readSaved = () => { try { return localStorage.getItem(STORAGE_KEY) || '' }
 const save      = (id) => { try { localStorage.setItem(STORAGE_KEY, id) } catch { /* sin almacenamiento */ } }
 
 // Las cámaras integradas del portátil se descartan al elegir por defecto
-const isBuiltIn = (label) => /hp hd|integrated|integrada|facetime|built-?in/i.test(label)
+const isBuiltIn = (label) => /hp hd|truevision|integrated|integrada|facetime|built-?in/i.test(label)
 
 function stopStream() {
   stream?.getTracks().forEach(t => t.stop())
@@ -209,9 +209,22 @@ async function listDevices() {
 
 function pickDefault() {
   const saved = readSaved()
-  if (saved && devices.value.some(d => d.deviceId === saved)) return saved
+  const savedDev = devices.value.find(d => d.deviceId === saved)
   const external = devices.value.find(d => !isBuiltIn(d.label))
+  // Una integrada guardada no le gana a la cámara de documentos si está conectada
+  if (savedDev && (!isBuiltIn(savedDev.label) || !external)) return saved
   return (external || devices.value[0])?.deviceId || ''
+}
+
+// Al conectar/desconectar una cámara con el modal abierto se vuelve a elegir
+async function onDeviceChange() {
+  if (!props.modelValue || step.value !== 'live') return
+  await listDevices()
+  const best = pickDefault()
+  if (best && best !== deviceId.value) {
+    deviceId.value = best
+    startStream()
+  }
 }
 
 async function startStream() {
@@ -222,13 +235,15 @@ async function startStream() {
     return
   }
   try {
+    // Se relee la lista cada vez: la cámara de documentos pudo conectarse después
+    await listDevices()
     // Primer permiso: sin él, el navegador no expone los nombres de las cámaras
     if (!devices.value.some(d => d.label)) {
       const tmp = await navigator.mediaDevices.getUserMedia({ video: true })
       tmp.getTracks().forEach(t => t.stop())
       await listDevices()
     }
-    if (!deviceId.value) deviceId.value = pickDefault()
+    if (!devices.value.some(d => d.deviceId === deviceId.value)) deviceId.value = pickDefault()
 
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
@@ -281,7 +296,6 @@ async function capture() {
   ctx.translate(canvas.width / 2, canvas.height / 2)
   ctx.rotate((rotation.value * Math.PI) / 180)
   ctx.drawImage(v, -v.videoWidth / 2, -v.videoHeight / 2)
-  if (deviceId.value) save(deviceId.value)
 
   busy.value = 'Detectando los bordes de la hoja…'
   let cv
@@ -470,6 +484,8 @@ function close() {
 
 watch(() => props.modelValue, open => {
   if (open) {
+    // Se vuelve a elegir al abrir, por si cambió qué cámaras hay conectadas
+    deviceId.value = ''
     startStream()
     // Se descarga el detector mientras se encuadra la hoja; si falla, se reintenta al capturar
     loadCv().catch(() => {})
@@ -477,7 +493,12 @@ watch(() => props.modelValue, open => {
     stopStream()
   }
 })
-onBeforeUnmount(() => { stopStream(); resetShot() })
+navigator.mediaDevices?.addEventListener?.('devicechange', onDeviceChange)
+onBeforeUnmount(() => {
+  navigator.mediaDevices?.removeEventListener?.('devicechange', onDeviceChange)
+  stopStream()
+  resetShot()
+})
 </script>
 
 <style scoped>
