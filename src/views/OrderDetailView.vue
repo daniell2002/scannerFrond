@@ -281,6 +281,11 @@
       <button class="btn-icon" @click="zoomOut" title="Alejar"><i class="fas fa-search-minus"></i></button>
       <button class="btn-icon" @click="resetView" title="Restablecer"><i class="fas fa-compress"></i></button>
       <button class="btn-icon" @click="zoomIn" title="Acercar"><i class="fas fa-search-plus"></i></button>
+      <span class="photo-modal-sep"></span>
+      <button class="btn-icon" @click="rotateLeft" title="Girar a la izquierda"><i class="fas fa-rotate-left"></i></button>
+      <button class="btn-icon" @click="rotateRight" title="Girar a la derecha"><i class="fas fa-rotate-right"></i></button>
+      <button class="btn-icon" :class="{ active: flipX < 0 }" @click="flipX *= -1" title="Espejo horizontal"><i class="fas fa-arrows-left-right"></i></button>
+      <button class="btn-icon" :class="{ active: flipY < 0 }" @click="flipY *= -1" title="Espejo vertical"><i class="fas fa-arrows-up-down"></i></button>
       <button v-if="photoList.length > 1" class="btn-icon" @click="nextPhoto" title="Foto siguiente"><i class="fas fa-chevron-right"></i></button>
     </div>
     <div
@@ -297,11 +302,12 @@
     >
       <img
         :src="photoFullUrl" alt="Evidencia de la orden" class="photo-modal-img"
-        :style="{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }"
+        :class="{ 'is-dragging': dragging }"
+        :style="{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${flipX}, ${flipY}) rotate(${rotation}deg) scale(${zoom})` }"
         draggable="false"
       />
     </div>
-    <p class="photo-modal-hint">Arrastra para mover · rueda del mouse o los botones para acercar/alejar</p>
+    <p class="photo-modal-hint">Arrastra para mover · rueda del mouse o los botones para acercar/alejar, girar o voltear</p>
   </BaseModal>
 
   <EditOrderModal v-model="editOpen" :order="order" @saved="onCorrected" />
@@ -440,13 +446,21 @@ const nextPhoto = () => { photoIdx.value = (photoIdx.value + 1) % photoList.valu
 const photoModalOpen = ref(false)
 const zoom = ref(1)
 const pan  = ref({ x: 0, y: 0 })
+const rotation = ref(0)   // grados, múltiplos de 90
+const flipX = ref(1)      // -1 = espejo horizontal
+const flipY = ref(1)      // -1 = espejo vertical
 const dragging = ref(false)
 let dragStart = { x: 0, y: 0 }
 let panStart  = { x: 0, y: 0 }
 
 const openPhotoModal  = () => { photoModalOpen.value = true; resetView() }
 const closePhotoModal = () => { photoModalOpen.value = false }
-const resetView = () => { zoom.value = 1; pan.value = { x: 0, y: 0 } }
+const resetView = () => {
+  zoom.value = 1; pan.value = { x: 0, y: 0 }
+  rotation.value = 0; flipX.value = 1; flipY.value = 1
+}
+const rotateLeft  = () => { rotation.value -= 90 }
+const rotateRight = () => { rotation.value += 90 }
 const zoomIn  = () => { zoom.value = Math.min(4, +(zoom.value + 0.25).toFixed(2)) }
 const zoomOut = () => { zoom.value = Math.max(0.5, +(zoom.value - 0.25).toFixed(2)) }
 const onWheel = (e) => { e.deltaY < 0 ? zoomIn() : zoomOut() }
@@ -626,7 +640,9 @@ const endDrag = () => { dragging.value = false }
 }
 
 /* Modal de evidencia: zoom + arrastre */
-.photo-modal-controls { display: flex; gap: 0.5rem; justify-content: flex-end; }
+.photo-modal-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end; align-items: center; }
+.photo-modal-sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 0.25rem; }
+.photo-modal-controls .btn-icon.active { color: var(--accent); background: var(--accent-soft); }
 
 .photo-modal-stage {
   position: relative;
@@ -647,7 +663,9 @@ const endDrag = () => { dragging.value = false }
   object-fit: contain;
   user-select: none;
   pointer-events: none;
+  transition: transform 0.2s ease;
 }
+.photo-modal-img.is-dragging { transition: none; }
 .photo-modal-hint {
   text-align: center; font-size: 0.7rem; color: var(--ink-500);
   margin: 0;
