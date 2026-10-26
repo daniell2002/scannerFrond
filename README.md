@@ -4,3 +4,8 @@ This template should help get you started developing with Vue 3 in Vite. The tem
 
 Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
 # scannerFrond
+
+## Órdenes con fecha anterior
+
+En el formulario de registro, "Fecha de la orden" permite ingresar una orden olvidada con su fecha real.
+Pide el motivo del ingreso tardío, que queda en la trazabilidad de la orden.
