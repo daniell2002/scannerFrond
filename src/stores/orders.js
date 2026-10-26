@@ -36,8 +36,10 @@ export const useOrdersStore = defineStore('orders', () => {
     }))
   )
 
+  // registeredAt: las ingresadas hoy con una fecha anterior también son del día
   const isVisibleToday = (order) =>
-    isToday(order.scheduledAt) || (order.scannedAt && isToday(order.scannedAt))
+    isToday(order.scheduledAt) || (order.scannedAt && isToday(order.scannedAt)) ||
+    (order.registeredAt && isToday(order.registeredAt))
 
   const todayOrders = computed(() =>
     ordersWithMeta.value.filter(isVisibleToday)
@@ -53,7 +55,8 @@ export const useOrdersStore = defineStore('orders', () => {
     const day = filters.value.day
     if (!day) return todayOrders.value
     return ordersWithMeta.value.filter(o =>
-      dayKey(o.scheduledAt) === day || (o.scannedAt && dayKey(o.scannedAt) === day))
+      dayKey(o.scheduledAt) === day || (o.scannedAt && dayKey(o.scannedAt) === day) ||
+      (o.registeredAt && dayKey(o.registeredAt) === day))
   })
 
   const filteredOrders = computed(() => {
@@ -177,7 +180,8 @@ export const useOrdersStore = defineStore('orders', () => {
     }
   }
 
-  async function registerOrder(rawCode, productName, sedeCode = 'BOG', attendedById, photoFiles = []) {
+  /** late: { date, reason } si la orden se ingresa con una fecha anterior (por defecto, ahora) */
+  async function registerOrder(rawCode, productName, sedeCode = 'BOG', attendedById, photoFiles = [], late = null) {
     const code = normalizeValue(rawCode)
     if (!code) {
       lastScanMessage.value = 'Ingresa una orden de producción válida.'
@@ -190,6 +194,10 @@ export const useOrdersStore = defineStore('orders', () => {
       form.append('product', productName?.trim() || 'Sin nombre')
       form.append('sede', sedeCode)
       if (attendedById) form.append('attendedById', attendedById)
+      if (late) {
+        form.append('orderDate', late.date.toISOString())
+        form.append('dateReason', late.reason)
+      }
       ;(Array.isArray(photoFiles) ? photoFiles : [photoFiles]).filter(Boolean).forEach(f => form.append('photos', f))
 
       const order = await api.post('/api/orders', form)

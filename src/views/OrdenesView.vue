@@ -97,7 +97,14 @@
                 </td>
                 <td>{{ item.attendedBy || '—' }}</td>
                 <td class="cell-muted">{{ item.operator }}</td>
-                <td><span class="ord-time">{{ fmtTime(item.scannedAt || item.scheduledAt) }}</span></td>
+                <td>
+                  <span class="ord-time">{{ fmtTime(item.scannedAt || item.scheduledAt) }}</span>
+                  <span
+                    v-if="dayKey(item.scheduledAt) !== dayKey(item.registeredAt || item.scheduledAt)"
+                    class="ord-backdated"
+                    :title="`Ingresada el ${fmtDay(item.registeredAt)}`"
+                  ><i class="fas fa-calendar-day me-1"></i>{{ fmtDay(item.scheduledAt) }}</span>
+                </td>
                 <td v-if="!isAdmin">
                   <OrderStatus :order="item" />
                 </td>
@@ -162,7 +169,7 @@ import { useOrdersStore } from '../stores/orders'
 import { useAuthStore } from '../stores/auth'
 import { generateOrderPdf } from '../utils/orderPdf'
 import BaseSelect from '../components/BaseSelect.vue'
-import { todayKey } from '../utils/dates'
+import { todayKey, dayKey } from '../utils/dates'
 import PageHeader from '../components/PageHeader.vue'
 import { useVendedores } from '../utils/useVendedores'
 import OrderStatus from '../components/OrderStatus.vue'
@@ -209,6 +216,7 @@ onMounted(() => {
   ordersStore.fetchOrders()
 })
 
+const fmtDay = (iso) => new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
 const fmtTime = (iso) => iso
   ? new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
   : '—'
@@ -246,6 +254,7 @@ async function generatePdf(order) {
 .ord-code { font-weight:700; letter-spacing:0.04rem; }
 .ord-product { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; display:inline-block; }
 .ord-time { font-size:0.82rem; font-weight:600; color:var(--ink-700); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.ord-backdated { display:block; font-size:0.72rem; font-weight:600; color:var(--accent); white-space:nowrap; }
 
 .table-empty .btn-save { text-decoration:none; }
 .day-pick { display:flex; align-items:center; gap:0.4rem; }

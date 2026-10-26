@@ -24,9 +24,9 @@
             </span>
           </template>
           <template v-else>
-            <span class="ed-from">{{ c.from || '—' }}</span>
+            <span class="ed-from">{{ show(field, c.from) }}</span>
             <i class="fas fa-arrow-right ed-arrow"></i>
-            <span class="ed-to">{{ c.to || '—' }}</span>
+            <span class="ed-to">{{ show(field, c.to) }}</span>
           </template>
         </li>
       </ul>
@@ -41,9 +41,11 @@ import { roleLabel } from '../utils/modules'
 
 const props = defineProps({ edits: { type: Array, default: () => [] } })
 
-const FIELDS = { code: 'Código', product: 'Cliente', attendedBy: 'Atendido por', photos: 'Fotos' }
+const FIELDS = { code: 'Código', product: 'Cliente', attendedBy: 'Atendido por', photos: 'Fotos', scheduledAt: 'Fecha de la orden' }
 const list = computed(() => [...props.edits].reverse())
 const fmtDate = (d) => new Date(d).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })
+// Ingreso con fecha anterior: de la fecha en que se ingresó a la fecha de la orden
+const show = (field, v) => !v ? '—' : field === 'scheduledAt' ? new Date(v).toLocaleDateString('es-CO', { dateStyle: 'medium' }) : v
 const removed = (c) => (c.from || []).filter(p => !(c.to || []).includes(p))
 const added   = (c) => (c.to || []).filter(p => !(c.from || []).includes(p))
 </script>

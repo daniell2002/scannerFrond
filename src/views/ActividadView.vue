@@ -131,7 +131,7 @@ const ACTIONS = {
 const FIELDS = {
   product: 'Cliente', line: 'Línea', batch: 'Lote', status: 'Estado', priority: 'Prioridad', sede: 'Sede',
   quantity: 'Cantidad', completed: 'Completadas', operator: 'Registró', attendedBy: 'Atendido por',
-  code: 'Código', photos: 'Fotos', reason: 'Motivo',
+  code: 'Código', photos: 'Fotos', reason: 'Motivo', scheduledAt: 'Fecha de la orden',
   name: 'Nombre', email: 'Correo', role: 'Rol', permissions: 'Módulos', active: 'Activo', password: 'Contraseña',
   city: 'Ciudad', manager: 'Encargado',
 }
@@ -147,6 +147,7 @@ const actionTone = (a) => a === 'eliminar' ? 'danger' : a === 'crear' ? 'ok' : a
 function valueText(v) {
   if (v === null || v === undefined || v === '') return '—'
   if (typeof v === 'boolean') return v ? 'Sí' : 'No'
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v)) return new Date(v).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
   // Fotos de una orden: se muestra la cantidad
   if (Array.isArray(v) && v.some(x => String(x).startsWith('/uploads/'))) return `${v.length} ${v.length === 1 ? 'foto' : 'fotos'}`
   if (Array.isArray(v)) return v.map(k => MODULE_NAMES[k] || k).join(', ') || '—'

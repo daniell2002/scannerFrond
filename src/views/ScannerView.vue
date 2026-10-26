@@ -83,6 +83,45 @@
               </div>
 
 
+              <!-- Fecha de la orden: hoy, o una anterior si se olvidó ingresarla ese día -->
+              <div class="field">
+                <label class="flabel">Fecha de la orden</label>
+                <div class="mf-wrap">
+                  <i class="fas fa-calendar-day mf-icon"></i>
+                  <input
+                    v-model="orderDay"
+                    type="date"
+                    class="mf-inp"
+                    :max="todayKey()"
+                  />
+                  <button
+                    v-if="isBackdated"
+                    type="button"
+                    class="mf-eye"
+                    title="Volver a hoy"
+                    @click="orderDay = todayKey()"
+                  ><i class="fas fa-undo"></i></button>
+                </div>
+                <span v-if="isBackdated" class="fhint">
+                  <i class="fas fa-info-circle me-1"></i>Se verá hoy en órdenes del día y después en el historial con fecha {{ orderDayLabel }}.
+                </span>
+              </div>
+
+              <!-- Ingreso tardío: el motivo queda en la trazabilidad de la orden -->
+              <div v-if="isBackdated" class="field">
+                <label class="flabel">Motivo del ingreso tardío <span class="freq">&nbsp;*</span></label>
+                <div class="mf-wrap">
+                  <i class="fas fa-comment mf-icon"></i>
+                  <input
+                    v-model="dateReason"
+                    type="text"
+                    class="mf-inp"
+                    maxlength="300"
+                    placeholder="Ej.: no se registró ese día"
+                  />
+                </div>
+              </div>
+
               <div class="field">
                 <label class="flabel">Orden de producción <span class="freq">&nbsp;*</span></label>
                 <div class="mf-wrap">
@@ -299,6 +338,7 @@ import BaseModal from '../components/BaseModal.vue'
 import DocCameraModal from '../components/DocCameraModal.vue'
 import { useVendedores } from '../utils/useVendedores'
 import { compressImage } from '../utils/image'
+import { todayKey } from '../utils/dates'
 
 const ordersStore = useOrdersStore()
 const auth        = useAuthStore()
@@ -321,6 +361,18 @@ const sedeNombre  = computed(() => sedes.value.find(s => s.code === sedeFija.val
 const orderCode  = ref('')
 const orderName  = ref('')
 const orderSede  = ref(sedeFija.value)
+const orderDay   = ref(todayKey())   // 'AAAA-MM-DD'
+const isBackdated = computed(() => !!orderDay.value && orderDay.value !== todayKey())
+const dateReason  = ref('')
+const orderDayLabel = computed(() =>
+  new Date(`${orderDay.value}T00:00`).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }))
+// Fecha elegida (con la hora actual) y motivo; null = hoy (la pone el servidor)
+const lateEntry = () => {
+  if (!isBackdated.value) return null
+  const [y, m, d] = orderDay.value.split('-').map(Number)
+  const date = new Date(); date.setFullYear(y, m - 1, d)
+  return { date, reason: dateReason.value.trim() }
+}
 /* Una orden puede tener varias páginas/fotos */
 const MAX_PHOTOS  = 10
 const photos      = ref([])   // [{ file, url }]
@@ -366,13 +418,16 @@ watch(vendorOptions, (opts) => {
 
 // La orden no se guarda sin al menos una foto del documento
 const canSubmit = computed(() =>
-  orderCode.value.trim() && orderName.value.trim() && attendedBy.value && photos.value.length > 0 && !processingPhotos.value)
+  orderCode.value.trim() && orderName.value.trim() && attendedBy.value && photos.value.length > 0 &&
+  !processingPhotos.value && (!orderDay.value || orderDay.value <= todayKey()) &&
+  (!isBackdated.value || dateReason.value.trim()))
 const missingHint = computed(() => {
   if (!orderCode.value.trim()) return ''
   const missing = [
     !photos.value.length && 'la foto',
     !orderName.value.trim() && 'el cliente',
     !attendedBy.value && 'quién atendió',
+    isBackdated.value && !dateReason.value.trim() && 'el motivo del ingreso tardío',
   ].filter(Boolean)
   return missing.length ? `falta ${missing.join(', ').replace(/, ([^,]*)$/, ' y $1')}` : ''
 })
@@ -391,6 +446,7 @@ const submit = async () => {
       effectiveSede.value,
       attendedBy.value,
       photos.value.map(p => p.file),
+      lateEntry(),
     )
 
     if (result?.reason === 'duplicate') {
@@ -401,7 +457,7 @@ const submit = async () => {
     if (!result?.ok) return
     dupOpen.value = false
 
-    orderCode.value = ''; orderName.value = ''
+    orderCode.value = ''; orderName.value = ''; orderDay.value = todayKey(); dateReason.value = ''
     attendedBy.value = vendorOptions.value.length === 1 ? vendorOptions.value[0].value : ''
     if (!fixedSede.value) orderSede.value = sedes.value[0]?.code || ''
     clearPhotos()
