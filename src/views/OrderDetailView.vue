@@ -291,13 +291,10 @@
     <div
       class="photo-modal-stage"
       :class="{ 'is-dragging': dragging }"
-      @mousedown="startDrag"
-      @mousemove="onDrag"
-      @mouseup="endDrag"
-      @mouseleave="endDrag"
-      @touchstart="startDrag"
-      @touchmove="onDrag"
-      @touchend="endDrag"
+      @pointerdown="onPointerDown"
+      @pointermove="onPointerMove"
+      @pointerup="onPointerUp"
+      @pointercancel="onPointerUp"
       @wheel.prevent="onWheel"
     >
       <img
@@ -307,7 +304,9 @@
         draggable="false"
       />
     </div>
-    <p class="photo-modal-hint">Arrastra para mover · rueda del mouse o los botones para acercar/alejar, girar o voltear</p>
+    <p class="photo-modal-hint">{{ isTouch
+      ? 'Arrastra para mover · pellizca o toca dos veces para acercar · desliza para cambiar de foto'
+      : 'Arrastra para mover · rueda del mouse o doble clic para acercar/alejar · botones para girar o voltear' }}</p>
   </BaseModal>
 
   <EditOrderModal v-model="editOpen" :order="order" @saved="onCorrected" />
@@ -450,10 +449,9 @@ const rotation = ref(0)   // grados, múltiplos de 90
 const flipX = ref(1)      // -1 = espejo horizontal
 const flipY = ref(1)      // -1 = espejo vertical
 const dragging = ref(false)
-let dragStart = { x: 0, y: 0 }
-let panStart  = { x: 0, y: 0 }
+const isTouch  = window.matchMedia?.('(pointer: coarse)').matches ?? false
 
-const openPhotoModal  = () => { photoModalOpen.value = true; resetView() }
+const openPhotoModal  = () => { photoModalOpen.value = true; resetView(); pointers.clear(); gesture = null; dragging.value = false }
 const closePhotoModal = () => { photoModalOpen.value = false }
 const resetView = () => {
   zoom.value = 1; pan.value = { x: 0, y: 0 }
@@ -465,23 +463,80 @@ const zoomIn  = () => { zoom.value = Math.min(4, +(zoom.value + 0.25).toFixed(2)
 const zoomOut = () => { zoom.value = Math.max(0.5, +(zoom.value - 0.25).toFixed(2)) }
 const onWheel = (e) => { e.deltaY < 0 ? zoomIn() : zoomOut() }
 
-const pointerPos = (e) => e.touches ? e.touches[0] : e
+/* Gestos (mouse, dedo o lápiz): un puntero arrastra, dos pellizcan para el zoom,
+   doble toque acerca/aleja y deslizar sin zoom cambia de foto */
+const MIN_ZOOM = 0.5, MAX_ZOOM = 4
+const pointers = new Map()   // pointerId → { x, y }
+let gesture = null
+let lastTap = { t: 0, x: 0, y: 0 }
 
-const startDrag = (e) => {
-  dragging.value = true
-  const p = pointerPos(e)
-  dragStart = { x: p.clientX, y: p.clientY }
-  panStart  = { ...pan.value }
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y)
+const mid  = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 })
+
+// Arranca (o reinicia) el gesto con los punteros activos, p. ej. al poner o levantar un dedo
+function beginGesture(stage) {
+  const pts = [...pointers.values()]
+  const r = stage.getBoundingClientRect()
+  const center = { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+  gesture = pts.length >= 2
+    ? { kind: 'pinch', center, dist0: dist(pts[0], pts[1]) || 1, mid0: mid(pts[0], pts[1]), zoom0: zoom.value, pan0: { ...pan.value } }
+    : { kind: 'pan', start: pts[0], pan0: { ...pan.value }, swipe: zoom.value <= 1 }
 }
-const onDrag = (e) => {
-  if (!dragging.value) return
-  const p = pointerPos(e)
+
+const onPointerDown = (e) => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  e.currentTarget.setPointerCapture(e.pointerId)
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+  dragging.value = true
+
+  // Doble toque / doble clic: acerca al doble o vuelve al tamaño normal
+  const now = Date.now()
+  if (pointers.size === 1 && now - lastTap.t < 300 && dist(lastTap, { x: e.clientX, y: e.clientY }) < 30) {
+    if (zoom.value > 1) { zoom.value = 1; pan.value = { x: 0, y: 0 } } else zoom.value = 2
+    lastTap = { t: 0, x: 0, y: 0 }
+  } else if (pointers.size === 1) {
+    lastTap = { t: now, x: e.clientX, y: e.clientY }
+  }
+  beginGesture(e.currentTarget)
+}
+
+const onPointerMove = (e) => {
+  if (!pointers.has(e.pointerId) || !gesture) return
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+  const pts = [...pointers.values()]
+
+  if (gesture.kind === 'pan') {
+    pan.value = { x: gesture.pan0.x + pts[0].x - gesture.start.x, y: gesture.pan0.y + pts[0].y - gesture.start.y }
+    return
+  }
+  // Pellizco: el punto entre los dedos se queda bajo los dedos mientras cambia el zoom
+  const { center: c, mid0, pan0, zoom0 } = gesture
+  const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom0 * dist(pts[0], pts[1]) / gesture.dist0))
+  const m = mid(pts[0], pts[1])
+  const k = z / zoom0
+  zoom.value = z
   pan.value = {
-    x: panStart.x + (p.clientX - dragStart.x),
-    y: panStart.y + (p.clientY - dragStart.y),
+    x: m.x - c.x - (mid0.x - c.x - pan0.x) * k,
+    y: m.y - c.y - (mid0.y - c.y - pan0.y) * k,
   }
 }
-const endDrag = () => { dragging.value = false }
+
+const onPointerUp = (e) => {
+  if (!pointers.has(e.pointerId)) return
+  pointers.delete(e.pointerId)
+
+  // Deslizar a un lado sin zoom: foto anterior / siguiente
+  if (gesture?.kind === 'pan' && gesture.swipe && !pointers.size && photoList.value.length > 1) {
+    const dx = e.clientX - gesture.start.x, dy = e.clientY - gesture.start.y
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      gesture = null; dragging.value = false
+      return dx < 0 ? nextPhoto() : prevPhoto()
+    }
+  }
+
+  if (pointers.size) beginGesture(e.currentTarget)
+  else { gesture = null; dragging.value = false }
+}
 </script>
 
 <style scoped>

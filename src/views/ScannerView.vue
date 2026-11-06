@@ -297,10 +297,11 @@
 
     <DocCameraModal v-model="docCamOpen" @capture="processPhoto" />
 
-    <!-- Orden duplicada: un código no se registra dos veces; solo se informa -->
+    <!-- Orden duplicada: un código no se registra dos veces (error, no se guarda) -->
     <BaseModal
       v-model="dupOpen"
-      icon="fa-copy"
+      tone="danger"
+      icon="fa-triangle-exclamation"
       title="Orden ya registrada"
       :subtitle="dup?.message"
       max-width="460px"
@@ -522,7 +523,7 @@ html.dark .doccam-btn { color:#bcd6f7; }
 .dup-row { display:flex; justify-content:space-between; gap:1rem; padding:0.5rem 0; border-bottom:1px dashed var(--line); font-size:0.85rem; }
 .dup-row span { color:var(--ink-500); }
 .dup-row strong { color:var(--ink-900); text-align:right; }
-.dup-note { margin:0.9rem 0 0; padding:0.65rem 0.8rem; border-radius:0.55rem; font-size:0.8rem; color:var(--ink-700); background:color-mix(in srgb, var(--warning, #d99a1e) 14%, transparent); }
+.dup-note { margin:0.9rem 0 0; padding:0.65rem 0.8rem; border-radius:0.55rem; font-size:0.8rem; font-weight:600; color:var(--danger); background:color-mix(in srgb, var(--danger) 10%, transparent); }
 
 .scanner-page { padding: 1.25rem 0; }
 

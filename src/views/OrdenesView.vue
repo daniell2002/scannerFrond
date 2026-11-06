@@ -27,7 +27,7 @@
               <input
                 type="text"
                 class="form-control"
-                placeholder="Buscar por orden de producción…"
+                placeholder="Buscar por orden de producción o cliente…"
                 :value="filters.query"
                 @input="ordersStore.setFilter('query', $event.target.value)"
               />

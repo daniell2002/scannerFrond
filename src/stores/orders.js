@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { api } from '../api'
 import { useNotificationsStore } from './notifications'
 import { dayKey } from '../utils/dates'
+import { matchesOrder } from '../utils/search'
 
 const normalizeValue = (v) => v.trim().toUpperCase()
 
@@ -60,9 +61,8 @@ export const useOrdersStore = defineStore('orders', () => {
   })
 
   const filteredOrders = computed(() => {
-    const query = normalizeValue(filters.value.query)
     return ordersOfDay.value.filter(o => {
-      const matchQ    = !query || String(o.code).toUpperCase().includes(query)
+      const matchQ    = matchesOrder(o, filters.value.query)
       const matchSede = filters.value.sede     === 'all' || o.sede     === filters.value.sede
       const matchOp   = filters.value.attendedBy === 'all' || String(o.attendedById) === filters.value.attendedBy
       const matchSt   = filters.value.status   === 'all' || o.status   === filters.value.status

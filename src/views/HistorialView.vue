@@ -50,7 +50,7 @@
               <input
                 type="text"
                 class="form-control"
-                placeholder="Buscar por orden de producción…"
+                placeholder="Buscar por orden de producción o cliente…"
                 v-model="filters.query"
               />
             </div>
@@ -190,6 +190,7 @@ import { useNotificationsStore } from '../stores/notifications'
 import BaseSelect from '../components/BaseSelect.vue'
 import DateRangeFilter from '../components/DateRangeFilter.vue'
 import { inRange, dayKey } from '../utils/dates'
+import { matchesOrder } from '../utils/search'
 import PageHeader from '../components/PageHeader.vue'
 import { useVendedores } from '../utils/useVendedores'
 import OrderStatus from '../components/OrderStatus.vue'
@@ -273,9 +274,8 @@ const myStats = computed(() => {
 })
 
 const filteredHistoricalOrders = computed(() => {
-  const query = filters.value.query.trim().toUpperCase()
   return historicalOrders.value.filter(o => {
-    const matchQ    = !query || String(o.code).toUpperCase().includes(query)
+    const matchQ    = matchesOrder(o, filters.value.query)
     const matchSede = filters.value.sede === 'all' || o.sede === filters.value.sede
     const matchVend = filters.value.attendedBy === 'all' || String(o.attendedById) === filters.value.attendedBy
     const matchDate = inRange(o.scannedAt || o.scheduledAt, filters.value.from, filters.value.to)
